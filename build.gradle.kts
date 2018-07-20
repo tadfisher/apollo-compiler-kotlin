@@ -1,0 +1,47 @@
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+
+plugins {
+    `java-library`
+    kotlin("jvm") version "1.2.51"
+    antlr
+    idea
+}
+
+dependencies {
+
+    implementation(kotlin("stdlib-jdk8"))
+    implementation("com.squareup:kotlinpoet:1.0.0-RC1")
+    implementation("com.apollographql.apollo:apollo-api:1.0.0-alpha")
+    implementation("org.parboiled:parboiled-java:1.1.8")
+
+    antlr("org.antlr:antlr4:4.7.1")
+    implementation("org.antlr:antlr4-runtime:4.7.1")
+
+    testImplementation("junit:junit:4.12")
+    testImplementation("com.google.truth:truth:0.30")
+    testImplementation("com.google.testing.compile:compile-testing:0.11")
+}
+
+repositories {
+    jcenter()
+}
+
+idea {
+    module {
+        generatedSourceDirs
+    }
+}
+
+tasks.withType<AntlrTask> {
+    arguments.addAll(listOf(""))
+}
+
+tasks.withType<KotlinCompile> {
+    kotlinOptions {
+        jvmTarget = "1.8"
+    }
+}
+
+tasks.withType<Wrapper> {
+    gradleVersion = "4.9"
+}
