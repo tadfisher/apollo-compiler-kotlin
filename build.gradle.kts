@@ -29,7 +29,11 @@ repositories {
 }
 
 tasks.withType<AntlrTask> {
-    arguments.addAll(listOf("-package", "com.apollographql.apollo.compiler.parsing"))
+    arguments.addAll(listOf(
+            "-lib", "src/main/antlr/com/apollographql/apollo/compiler/parsing",
+            "-package", "com.apollographql.apollo.compiler.parsing",
+            "-no-listener"
+            ))
 }
 
 tasks.withType<KotlinCompile> {

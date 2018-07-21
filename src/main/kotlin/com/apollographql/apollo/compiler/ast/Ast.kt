@@ -1,14 +1,55 @@
 package com.apollographql.apollo.compiler.ast
 
-import java.math.BigDecimal
-import java.math.BigInteger
+data class AstLocation(
+        val index: Int,
+        val line: Int,
+        val column: Int
+)
+
+interface AstNode {
+    val location: AstLocation?
+}
+
+interface NameValue : AstNode {
+    val name: String
+    val value: Value
+}
+
+interface Selection : AstNode, WithDirectives
+
+interface ConditionalFragment {
+    val typeCondition: NamedType?
+}
+
+interface WithArguments {
+    val arguments: List<Argument>
+}
+
+interface WithDescription {
+    val description: StringValue?
+}
+
+interface WithDirectives {
+    val directives: List<Directive>
+}
+
+interface SelectionContainer {
+    val selections: List<Selection>
+}
+
+sealed class Definition : AstNode
+
+sealed class ExecutableDefinition : Definition(), WithDirectives, SelectionContainer
+
+sealed class ObjectLikeTypeExtension : TypeExtension() {
+    abstract val fields: List<FieldDefinition>
+}
 
 data class Document(
         val definitions: List<Definition>,
-        override val trailingComments: List<Comment> = emptyList(),
         override val location: AstLocation? = null
         // TODO val sourceMapper: SourceMapper? = null
-) : AstNode, WithTrailingComments {
+) : AstNode {
     val operations: Map<String?, OperationDefinition> by lazy {
         definitions.filterIsInstance<OperationDefinition>().associateBy { it.name }
     }
@@ -31,7 +72,7 @@ data class Document(
 
     fun merge(other: Document) = listOf(this, other).merge()
 
-    // TODO operator fun plus(other: Document) = merge(other)
+    operator fun plus(other: Document) = merge(other)
 
     // TODO val analyzer by lazy { DocumentAnalyzer(this) }
 
@@ -53,41 +94,9 @@ data class Document(
     }
 }
 
-data class InputDocument(
-        val values: List<Value>,
-        override val trailingComments: List<Comment> = emptyList(),
-        override val location: AstLocation? = null
-        // TODO val sourceMapper: SourceMapper? = null
-) : AstNode, WithTrailingComments {
-    // TODO val source: String? by lazy { sourceMapper?.source }
-}
-
 // TODO merge sourceMappers
 fun Iterable<Document>.merge(): Document =
         Document(definitions = flatMap { it.definitions })
-
-fun Iterable<InputDocument>.merge(): InputDocument =
-        InputDocument(values = flatMap { it.values })
-
-interface ConditionalFragment {
-    val typeCondition: NamedType?
-}
-
-interface WithComments {
-    val comments: List<Comment>
-}
-
-interface WithDescription {
-    val description: StringValue?
-}
-
-interface WithTrailingComments {
-    val trailingComments: List<Comment>
-}
-
-interface SelectionContainer : WithComments, WithTrailingComments {
-    val selections: List<Selection>
-}
 
 data class OperationDefinition(
         val operationType: OperationType = OperationType.Query,
@@ -95,35 +104,10 @@ data class OperationDefinition(
         val variables: List<VariableDefinition> = emptyList(),
         override val directives: List<Directive> = emptyList(),
         override val selections: List<Selection>,
-        override val comments: List<Comment> = emptyList(),
-        override val trailingComments: List<Comment> = emptyList(),
         override val location: AstLocation? = null
-) : Definition, WithDirectives, SelectionContainer
-
-data class FragmentDefinition(
-        val name: String,
-        override val typeCondition: NamedType,
-        override val directives: List<Directive>,
-        override val selections: List<Selection>,
-        val variables: List<VariableDefinition> = emptyList(),
-        override val comments: List<Comment> = emptyList(),
-        override val trailingComments: List<Comment> = emptyList(),
-        override val location: AstLocation? = null
-) : Definition, ConditionalFragment, WithDirectives, SelectionContainer
+) : ExecutableDefinition(), WithDirectives
 
 enum class OperationType { Query, Mutation, Subscription }
-
-data class VariableDefinition(
-        val name: String,
-        val type: Type,
-        val defaultValue: Value?,
-        override val comments: List<Comment> = emptyList(),
-        override val location: AstLocation? = null
-) : AstNode, WithComments
-
-interface WithArguments {
-    val arguments: List<Argument>
-}
 
 data class Field(
         val alias: String?,
@@ -131,15 +115,18 @@ data class Field(
         override val arguments: List<Argument>,
         override val directives: List<Directive>,
         override val selections: List<Selection>,
-        override val comments: List<Comment> = emptyList(),
-        override val trailingComments: List<Comment> = emptyList(),
         override val location: AstLocation? = null
 ) : Selection, SelectionContainer, WithArguments
+
+data class Argument(
+        override val name: String,
+        override val value: Value,
+        override val location: AstLocation? = null
+) : NameValue
 
 data class FragmentSpread(
         val name: String,
         override val directives: List<Directive>,
-        override val comments: List<Comment> = emptyList(),
         override val location: AstLocation? = null
 ) : Selection
 
@@ -147,61 +134,28 @@ data class InlineFragment(
         override val typeCondition: NamedType?,
         override val directives: List<Directive>,
         override val selections: List<Selection>,
-        override val comments: List<Comment> = emptyList(),
-        override val trailingComments: List<Comment> = emptyList(),
         override val location: AstLocation? = null
 ) : Selection, ConditionalFragment, SelectionContainer
 
-interface NameValue : AstNode, WithComments {
-    val name: String
-    val value: Value
-}
-
-interface WithDirectives {
-    val directives: List<Directive>
-}
-
-data class Directive(
+data class FragmentDefinition(
         val name: String,
-        override val arguments: List<Argument>,
-        val comments: List<Comment> = emptyList(),
+        override val typeCondition: NamedType,
+        override val directives: List<Directive>,
+        override val selections: List<Selection>,
         override val location: AstLocation? = null
-) : AstNode, WithArguments
+) : ExecutableDefinition(), ConditionalFragment, WithDirectives
 
-data class Argument(
-        override val name: String,
-        override val value: Value,
-        override val comments: List<Comment> = emptyList(),
-        override val location: AstLocation? = null
-) : NameValue
-
-sealed class Value : AstNode, WithComments {
-    // TODO fun renderPretty: String
-}
+sealed class Value : AstNode
 
 sealed class ScalarValue : Value()
 
 data class IntValue(
         val value: Int,
-        override val comments: List<Comment> = emptyList(),
-        override val location: AstLocation? = null
-) : ScalarValue()
-
-data class BigIntValue(
-        val value: BigInteger,
-        override val comments: List<Comment> = emptyList(),
         override val location: AstLocation? = null
 ) : ScalarValue()
 
 data class FloatValue(
         val value: Double,
-        override val comments: List<Comment> = emptyList(),
-        override val location: AstLocation? = null
-) : ScalarValue()
-
-data class BigDecimalValue(
-        val value: BigDecimal,
-        override val comments: List<Comment> = emptyList(),
         override val location: AstLocation? = null
 ) : ScalarValue()
 
@@ -209,42 +163,30 @@ data class StringValue(
         val value: String,
         val block: Boolean = false,
         val blockRawValue: String? = null,
-        override val comments: List<Comment> = emptyList(),
         override val location: AstLocation? = null
 ) : ScalarValue()
 
 data class BooleanValue(
         val value: Boolean,
-        override val comments: List<Comment> = emptyList(),
         override val location: AstLocation? = null
 ) : ScalarValue()
 
+data class NullValue(
+        override val location: AstLocation? = null
+) : Value()
+
 data class EnumValue(
         val value: String,
-        override val comments: List<Comment> = emptyList(),
         override val location: AstLocation? = null
 ) : Value()
 
 data class ListValue(
         val value: List<Value>,
-        override val comments: List<Comment> = emptyList(),
-        override val location: AstLocation? = null
-) : Value()
-
-data class VariableValue(
-        val name: String,
-        override val comments: List<Comment> = emptyList(),
-        override val location: AstLocation? = null
-) : Value()
-
-data class NullValue(
-        override val comments: List<Comment> = emptyList(),
         override val location: AstLocation? = null
 ) : Value()
 
 data class ObjectValue(
         val fields: List<ObjectField>,
-        override val comments: List<Comment> = emptyList(),
         override val location: AstLocation? = null
 ) : Value() {
     val fieldsByName by lazy {
@@ -255,211 +197,26 @@ data class ObjectValue(
 data class ObjectField(
         override val name: String,
         override val value: Value,
-        override val comments: List<Comment> = emptyList(),
         override val location: AstLocation? = null
 ) : NameValue
 
-data class Comment(val text: String, override val location: AstLocation? = null) : AstNode
-
-// Schema definition
-
-data class ScalarTypeDefinition(
-        override val name: String,
-        override val directives: List<Directive> = emptyList(),
-        override val description: StringValue? = null,
-        override val comments: List<Comment> = emptyList(),
-        override val location: AstLocation? = null
-) : TypeDefinition
-
-data class FieldDefinition(
+data class VariableDefinition(
         val name: String,
-        val fieldType: Type,
-        val arguments: List<Argument>,
-        override val directives: List<Directive> = emptyList(),
-        override val description: StringValue? = null,
-        override val comments: List<Comment> = emptyList(),
-        override val location: AstLocation? = null
-) : SchemaAstNode, WithDirectives, WithDescription
-
-data class InputValueDefinition(
-        val name: String,
-        val valueType: Type,
+        val type: Type,
         val defaultValue: Value?,
-        override val directives: List<Directive> = emptyList(),
-        override val description: StringValue? = null,
-        override val comments: List<Comment> = emptyList(),
         override val location: AstLocation? = null
-) : SchemaAstNode, WithDirectives, WithDescription
+) : AstNode
 
-data class ObjectTypeDefinition(
-        override val name: String,
-        val interfaces: List<NamedType>,
-        val fields: List<FieldDefinition>,
-        override val directives: List<Directive> = emptyList(),
-        override val description: StringValue? = null,
-        override val comments: List<Comment> = emptyList(),
-        override val trailingComments: List<Comment> = emptyList(),
-        override val location: AstLocation? = null
-) : TypeDefinition, WithTrailingComments
-
-data class InterfaceTypeDefinition(
-        override val name: String,
-        val fields: List<FieldDefinition>,
-        override val directives: List<Directive> = emptyList(),
-        override val description: StringValue? = null,
-        override val comments: List<Comment> = emptyList(),
-        override val trailingComments: List<Comment> = emptyList(),
-        override val location: AstLocation? = null
-) : TypeDefinition, WithTrailingComments
-
-data class UnionTypeDefinition(
-        override val name: String,
-        val types: List<NamedType>,
-        override val directives: List<Directive> = emptyList(),
-        override val description: StringValue? = null,
-        override val comments: List<Comment> = emptyList(),
-        override val trailingComments: List<Comment> = emptyList(),
-        override val location: AstLocation? = null
-) : TypeDefinition, WithTrailingComments
-
-data class EnumTypeDefinition(
-        override val name: String,
-        val values: List<EnumValueDefinition>,
-        override val directives: List<Directive> = emptyList(),
-        override val description: StringValue? = null,
-        override val comments: List<Comment> = emptyList(),
-        override val trailingComments: List<Comment> = emptyList(),
-        override val location: AstLocation? = null
-) : TypeDefinition, WithTrailingComments
-
-data class EnumValueDefinition(
+data class VariableValue(
         val name: String,
-        override val directives: List<Directive> = emptyList(),
-        override val description: StringValue? = null,
-        override val comments: List<Comment> = emptyList(),
         override val location: AstLocation? = null
-) : SchemaAstNode, WithDirectives, WithDescription
-
-data class InputObjectTypeDefinition(
-        override val name: String,
-        val fields: List<InputValueDefinition>,
-        override val directives: List<Directive> = emptyList(),
-        override val description: StringValue? = null,
-        override val comments: List<Comment> = emptyList(),
-        override val trailingComments: List<Comment> = emptyList(),
-        override val location: AstLocation? = null
-) : TypeDefinition, WithTrailingComments, WithDescription
-
-data class ObjectTypeExtensionDefinition(
-        override val name: String,
-        val interfaces: List<NamedType>,
-        override val fields: List<FieldDefinition>,
-        override val directives: List<Directive> = emptyList(),
-        override val comments: List<Comment> = emptyList(),
-        override val trailingComments: List<Comment> = emptyList(),
-        override val location: AstLocation? = null
-) : ObjectLikeTypeExtensionDefinition, WithTrailingComments
-
-data class InterfaceTypeExtensionDefinition(
-        override val name: String,
-        override val fields: List<FieldDefinition>,
-        override val directives: List<Directive> = emptyList(),
-        override val comments: List<Comment> = emptyList(),
-        override val trailingComments: List<Comment> = emptyList(),
-        override val location: AstLocation? = null
-) : ObjectLikeTypeExtensionDefinition, WithTrailingComments
-
-data class InputObjectTypeExtensionDefinition(
-        override val name: String,
-        val fields: List<InputValueDefinition>,
-        override val directives: List<Directive> = emptyList(),
-        override val comments: List<Comment> = emptyList(),
-        override val trailingComments: List<Comment> = emptyList(),
-        override val location: AstLocation? = null
-) : TypeExtensionDefinition, WithTrailingComments
-
-data class EnumTypeExtensionDefinition(
-        override val name: String,
-        val values: List<EnumValueDefinition>,
-        override val directives: List<Directive> = emptyList(),
-        override val comments: List<Comment> = emptyList(),
-        override val trailingComments: List<Comment> = emptyList(),
-        override val location: AstLocation? = null
-) : TypeExtensionDefinition, WithTrailingComments
-
-data class UnionTypeExtensionDefinition(
-        override val name: String,
-        val types: List<NamedType>,
-        override val directives: List<Directive> = emptyList(),
-        override val comments: List<Comment> = emptyList(),
-        override val location: AstLocation? = null
-) : TypeExtensionDefinition
-
-data class ScalarTypeExtensionDefinition(
-        override val name: String,
-        override val directives: List<Directive> = emptyList(),
-        override val comments: List<Comment> = emptyList(),
-        override val location: AstLocation? = null
-) : TypeExtensionDefinition
-
-data class SchemaExtensionDefinition(
-        val operationTypes: List<OperationTypeDefinition>,
-        override val directives: List<Directive> = emptyList(),
-        override val comments: List<Comment> = emptyList(),
-        override val trailingComments: List<Comment> = emptyList(),
-        override val location: AstLocation? = null
-) : TypeSystemExtensionDefinition, WithDirectives, WithTrailingComments
-
-data class DirectiveDefinition(
-        val name: String,
-        val arguments: List<InputValueDefinition>,
-        val locations: List<DirectiveLocation>,
-        override val description: StringValue? = null,
-        override val comments: List<Comment> = emptyList(),
-        override val location: AstLocation? = null
-) : TypeSystemDefinition, WithDescription
-
-data class DirectiveLocation(
-        val name: String,
-        override val comments: List<Comment> = emptyList(),
-        override val location: AstLocation? = null
-) : SchemaAstNode
-
-data class SchemaDefinition(
-        val operationTypes: List<OperationTypeDefinition>,
-        override val directives: List<Directive>,
-        override val comments: List<Comment> = emptyList(),
-        override val trailingComments: List<Comment> = emptyList(),
-        override val location: AstLocation? = null
-) : TypeSystemDefinition, WithTrailingComments, WithDirectives
-
-data class OperationTypeDefinition(
-        val operation: OperationType,
-        val type: NamedType,
-        override val comments: List<Comment> = emptyList(),
-        override val location: AstLocation? = null
-) : SchemaAstNode
-
-data class AstLocation(
-        val sourceId: String = "",
-        val index: Int,
-        val line: Int,
-        val column: Int
-)
-
-interface AstNode {
-    val location: AstLocation?
-}
-
-interface Selection : AstNode, WithDirectives, WithComments
-
-interface Definition : AstNode
+) : Value()
 
 sealed class Type : AstNode {
     val namedType: NamedType
         get() {
-            fun loop(type: Type): NamedType = when (type) {
-                is NotNullType -> loop(type.ofType)
+            tailrec fun loop(type: Type): NamedType = when (type) {
+                is NonNullType -> loop(type.ofType)
                 is ListType -> loop(type.ofType)
                 is NamedType -> type
             }
@@ -468,21 +225,187 @@ sealed class Type : AstNode {
 }
 
 data class NamedType(val name: String, override val location: AstLocation? = null) : Type()
-data class NotNullType(val ofType: Type, override val location: AstLocation? = null) : Type()
 data class ListType(val ofType: Type, override val location: AstLocation? = null) : Type()
+data class NonNullType(val ofType: Type, override val location: AstLocation? = null) : Type()
 
-interface SchemaAstNode : AstNode, WithComments
-interface TypeSystemDefinition : SchemaAstNode
-interface TypeSystemExtensionDefinition : SchemaAstNode
+data class Directive(
+        val name: String,
+        override val arguments: List<Argument>,
+        override val location: AstLocation? = null
+) : AstNode, WithArguments
 
-interface TypeDefinition : TypeSystemDefinition, Definition, WithDirectives, WithDescription {
-    val name: String
+sealed class TypeSystemDefinition : Definition()
+sealed class TypeSystemExtension : Definition()
+
+data class SchemaDefinition(
+        val operationTypes: List<OperationTypeDefinition>,
+        override val directives: List<Directive>,
+        override val location: AstLocation? = null
+) : TypeSystemDefinition(), WithDirectives
+
+data class SchemaExtension(
+        val operationTypes: List<OperationTypeDefinition>,
+        override val directives: List<Directive> = emptyList(),
+        override val location: AstLocation? = null
+) : TypeSystemExtension(), WithDirectives
+
+data class OperationTypeDefinition(
+        val operation: OperationType,
+        val type: NamedType,
+        override val location: AstLocation? = null
+) : TypeSystemDefinition()
+
+sealed class TypeDefinition : TypeSystemDefinition(), WithDirectives, WithDescription {
+    abstract val name: String
 }
 
-interface TypeExtensionDefinition : TypeSystemExtensionDefinition, WithDirectives {
-    val name: String
+sealed class TypeExtension : TypeSystemExtension(), WithDirectives {
+    abstract val name: String
 }
 
-interface ObjectLikeTypeExtensionDefinition : TypeExtensionDefinition {
-    val fields: List<FieldDefinition>
+data class ScalarTypeDefinition(
+        override val name: String,
+        override val directives: List<Directive> = emptyList(),
+        override val description: StringValue? = null,
+        override val location: AstLocation? = null
+) : TypeDefinition()
+
+data class ScalarTypeExtension(
+        override val name: String,
+        override val directives: List<Directive> = emptyList(),
+        override val location: AstLocation? = null
+) : TypeExtension()
+
+data class ObjectTypeDefinition(
+        override val name: String,
+        val interfaces: List<NamedType>,
+        val fields: List<FieldDefinition>,
+        override val directives: List<Directive> = emptyList(),
+        override val description: StringValue? = null,
+        override val location: AstLocation? = null
+) : TypeDefinition()
+
+data class ObjectTypeExtension(
+        override val name: String,
+        val interfaces: List<NamedType>,
+        override val fields: List<FieldDefinition>,
+        override val directives: List<Directive> = emptyList(),
+        override val location: AstLocation? = null
+) : ObjectLikeTypeExtension()
+
+data class FieldDefinition(
+        val name: String,
+        val fieldType: Type,
+        val arguments: List<InputValueDefinition>,
+        override val directives: List<Directive> = emptyList(),
+        override val description: StringValue? = null,
+        override val location: AstLocation? = null
+) : AstNode, WithDirectives, WithDescription
+
+data class InputValueDefinition(
+        val name: String,
+        val valueType: Type,
+        val defaultValue: Value?,
+        override val directives: List<Directive> = emptyList(),
+        override val description: StringValue? = null,
+        override val location: AstLocation? = null
+) : AstNode, WithDirectives, WithDescription
+
+data class InterfaceTypeDefinition(
+        override val name: String,
+        val fields: List<FieldDefinition>,
+        override val directives: List<Directive> = emptyList(),
+        override val description: StringValue? = null,
+        override val location: AstLocation? = null
+) : TypeDefinition()
+
+data class InterfaceTypeExtension(
+        override val name: String,
+        override val fields: List<FieldDefinition>,
+        override val directives: List<Directive> = emptyList(),
+        override val location: AstLocation? = null
+) : ObjectLikeTypeExtension()
+
+data class UnionTypeDefinition(
+        override val name: String,
+        val types: List<NamedType>,
+        override val directives: List<Directive> = emptyList(),
+        override val description: StringValue? = null,
+        override val location: AstLocation? = null
+) : TypeDefinition()
+
+data class UnionTypeExtension(
+        override val name: String,
+        val types: List<NamedType>,
+        override val directives: List<Directive> = emptyList(),
+        override val location: AstLocation? = null
+) : TypeExtension()
+
+data class EnumTypeDefinition(
+        override val name: String,
+        val values: List<EnumValueDefinition>,
+        override val directives: List<Directive> = emptyList(),
+        override val description: StringValue? = null,
+        override val location: AstLocation? = null
+) : TypeDefinition()
+
+data class EnumValueDefinition(
+        val name: String,
+        override val directives: List<Directive> = emptyList(),
+        override val description: StringValue? = null,
+        override val location: AstLocation? = null
+) : AstNode, WithDirectives, WithDescription
+
+data class EnumTypeExtension(
+        override val name: String,
+        val values: List<EnumValueDefinition>,
+        override val directives: List<Directive> = emptyList(),
+        override val location: AstLocation? = null
+) : TypeExtension()
+
+data class InputObjectTypeDefinition(
+        override val name: String,
+        val fields: List<InputValueDefinition>,
+        override val directives: List<Directive> = emptyList(),
+        override val description: StringValue? = null,
+        override val location: AstLocation? = null
+) : TypeDefinition(), WithDescription
+
+data class InputObjectTypeExtension(
+        override val name: String,
+        val fields: List<InputValueDefinition>,
+        override val directives: List<Directive> = emptyList(),
+        override val location: AstLocation? = null
+) : TypeExtension()
+
+data class DirectiveDefinition(
+        val name: String,
+        val arguments: List<InputValueDefinition>,
+        val locations: List<DirectiveLocation>,
+        override val description: StringValue? = null,
+        override val location: AstLocation? = null
+) : TypeSystemDefinition(), WithDescription
+
+enum class DirectiveLocation {
+    // Executable
+    QUERY,
+    MUTATION,
+    SUBSCRIPTION,
+    FIELD,
+    FRAGMENT_DEFINITION,
+    FRAGMENT_SPREAD,
+    INLINE_FRAGMENT,
+
+    // Type system
+    SCHEMA,
+    SCALAR,
+    OBJECT,
+    FIELD_DEFINITION,
+    ARGUMENT_DEFINITION,
+    INTERFACE,
+    UNION,
+    ENUM,
+    ENUM_VALUE,
+    INPUT_OBJECT,
+    INPUT_FIELD_DEFINITION
 }
