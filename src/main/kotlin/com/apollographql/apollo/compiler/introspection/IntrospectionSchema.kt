@@ -95,9 +95,7 @@ data class IntrospectionField(
     val type: IntrospectionTypeRef,
     val isDeprecated: Boolean = false,
     val deprecationReason: String?
-) {
-    @delegate:Transient val argsByName by lazy { args.associateBy { it.name } }
-}
+)
 
 @JsonClass(generateAdapter = true)
 data class IntrospectionEnumValue(

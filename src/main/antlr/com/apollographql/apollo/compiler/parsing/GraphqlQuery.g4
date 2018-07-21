@@ -1,4 +1,4 @@
-grammar Query;
+grammar GraphqlQuery;
 
 document
     : definition+

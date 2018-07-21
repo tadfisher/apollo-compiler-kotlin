@@ -1,4 +1,4 @@
-grammar Schema;
+grammar GraphqlSchema;
 
 graphqlSchema
   : '{' (schemaDef|typeDef|inputTypeDef|unionDef|enumDef|interfaceDef|scalarDef)* '}'

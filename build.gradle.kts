@@ -5,7 +5,6 @@ plugins {
     kotlin("jvm") version "1.2.51"
     kotlin("kapt") version "1.2.51"
     antlr
-    idea
 }
 
 dependencies {
@@ -29,17 +28,12 @@ repositories {
     jcenter()
 }
 
-idea {
-    module {
-        generatedSourceDirs
-    }
+tasks.withType<AntlrTask> {
+    arguments.addAll(listOf("-package", "com.apollographql.apollo.compiler.parsing"))
 }
 
-//tasks.withType<AntlrTask> {
-//    arguments.addAll(listOf(""))
-//}
-
 tasks.withType<KotlinCompile> {
+    dependsOn("generateGrammarSource")
     kotlinOptions {
         jvmTarget = "1.8"
     }
