@@ -38,8 +38,8 @@ interface CompositeType<T> : Type, Named {
 }
 
 interface AbstractType : Type, Named {
-    fun <C> typeOf(value: Any, schema: Schema<C, *>): ObjectType<C, *> =
-            schema.possibleTypes
+//    TODO fun <C> typeOf(value: Any, schema: Schema<C, *>): ObjectType<C, *> =
+//            schema.possibleTypes
 }
 
 interface NullableType
@@ -105,17 +105,17 @@ data class Schema<C, V>(
         val astDirectives: List<AstDirective> = emptyList(),
         val astNodes: List<AstNode> = emptyList()
 ) {
-    val implementations: Map<String, List<ObjectType<*, *>>> by lazy {
-        fun findConcreteTypes(type: ObjectLikeType<*, *>): List<ObjectType<*, *>> {
-            return when(type) {
-
-            }
-        }
-    }
-
-    val possibleTypes: Map<String, List<ObjectType<*, *>>> by lazy {
-        // TODO
-        emptyMap()
-    }
+//    val implementations: Map<String, List<ObjectType<*, *>>> by lazy {
+//        fun findConcreteTypes(type: ObjectLikeType<*, *>): List<ObjectType<*, *>> {
+//            return when(type) {
+//
+//            }
+//        }
+//    }
+//
+//    val possibleTypes: Map<String, List<ObjectType<*, *>>> by lazy {
+//        // TODO
+//        emptyMap()
+//    }
 
 }

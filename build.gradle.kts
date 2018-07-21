@@ -3,6 +3,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 plugins {
     `java-library`
     kotlin("jvm") version "1.2.51"
+    kotlin("kapt") version "1.2.51"
     antlr
     idea
 }
@@ -12,7 +13,9 @@ dependencies {
     implementation(kotlin("stdlib-jdk8"))
     implementation("com.squareup:kotlinpoet:1.0.0-RC1")
     implementation("com.apollographql.apollo:apollo-api:1.0.0-alpha")
-    implementation("org.parboiled:parboiled-java:1.1.8")
+
+    implementation("com.squareup.moshi:moshi:1.6.0")
+    kapt("com.squareup.moshi:moshi-kotlin-codegen:1.6.0")
 
     antlr("org.antlr:antlr4:4.7.1")
     implementation("org.antlr:antlr4-runtime:4.7.1")
@@ -32,9 +35,9 @@ idea {
     }
 }
 
-tasks.withType<AntlrTask> {
-    arguments.addAll(listOf(""))
-}
+//tasks.withType<AntlrTask> {
+//    arguments.addAll(listOf(""))
+//}
 
 tasks.withType<KotlinCompile> {
     kotlinOptions {

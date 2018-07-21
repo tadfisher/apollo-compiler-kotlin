@@ -31,13 +31,13 @@ data class EnumValue<out T>(
 data class InputObjectType<T>(
         override val name: String,
         override val description: String? = null,
-        val fields: () -> List<InputField<*>>,
+        // TODO val fields: () -> List<InputField<*>>,
         override val astDirectives: List<Directive> = emptyList(),
         override val astNodes: List<AstNode> = emptyList()
 ) : InputType<T>, NullableType, UnmodifiedType, Named, HasAstInfo {
     override fun rename(newName: String): InputObjectType<T> = copy(name = newName)
 }
 
-data class InputField<T>(
-
-) : InputValue<T>, Named, HasAstInfo
+//data class InputField<T>(
+//
+//) : InputValue<T>, Named, HasAstInfo
