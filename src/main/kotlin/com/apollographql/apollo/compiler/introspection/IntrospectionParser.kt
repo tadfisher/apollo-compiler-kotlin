@@ -21,13 +21,13 @@ fun parseIntrospection(reader: JsonReader): IntrospectionSchema {
     return IntrospectionResultJsonAdapter(moshi).fromJson(reader).data.__schema
 }
 
-fun String.toIntrospectionSchema(): IntrospectionSchema =
+fun String.parseIntrospectionSchema(): IntrospectionSchema =
         parseIntrospection(JsonReader.of(Buffer().writeUtf8(this)))
 
-fun File.toIntrospectionSchema(): IntrospectionSchema =
+fun File.parseIntrospectionSchema(): IntrospectionSchema =
         parseIntrospection(JsonReader.of(Okio.buffer(Okio.source(this))))
 
-fun InputStream.toIntrospectionSchema(): IntrospectionSchema =
+fun InputStream.parseIntrospectionSchema(): IntrospectionSchema =
         parseIntrospection(JsonReader.of(Okio.buffer(Okio.source(this))))
 
 @JsonClass(generateAdapter = true)

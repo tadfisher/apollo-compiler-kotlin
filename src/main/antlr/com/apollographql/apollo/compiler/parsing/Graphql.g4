@@ -5,19 +5,17 @@ grammar Graphql;
 
 // Lexical tokens
 Name: [_A-Za-z][_0-9A-Za-z]*;
-IntValue: IntegerPart;
-fragment IntegerPart
-    : NegativeSign? '0'
-    | NegativeSign? NonZeroDigit Digit*;
+IntValue: NegativeSign? IntegerPart;
+FloatValue: NegativeSign? IntegerPart ('.' Digit+)? ExponentPart?;
 fragment NegativeSign: '-';
-fragment Digit: '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9';
-fragment NonZeroDigit: Digit ~'0';
-FloatValue
-    : IntegerPart FractionalPart
-    | IntegerPart ExponentPart
-    | IntegerPart FractionalPart ExponentPart;
+fragment IntegerPart
+    : '0'
+    | NonZeroDigit
+    | NonZeroDigit Digit*;
+fragment NonZeroDigit: '1'..'9';
+fragment ExponentPart: ('e' | 'E') Sign? Digit+;
+fragment Digit: '0'..'9';
 fragment FractionalPart: '.' Digit+;
-fragment ExponentPart: ExponentIndicator Sign? Digit+;
 fragment ExponentIndicator: 'e' | 'E';
 fragment Sign: '+' | '-';
 StringValue

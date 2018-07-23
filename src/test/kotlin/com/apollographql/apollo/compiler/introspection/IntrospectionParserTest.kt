@@ -7,7 +7,7 @@ class IntrospectionParserTest {
     @Test
     fun `parses introspection schema file`() {
         val source = javaClass.getResourceAsStream("/schema.json")
-        val schema = source.toIntrospectionSchema()
+        val schema = source.parseIntrospectionSchema()
         assertThat(schema).isNotNull()
     }
 }

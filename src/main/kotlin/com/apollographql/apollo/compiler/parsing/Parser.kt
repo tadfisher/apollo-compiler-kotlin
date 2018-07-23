@@ -1,41 +1,30 @@
 package com.apollographql.apollo.compiler.parsing
 
-import com.apollographql.apollo.compiler.ast.AstLocation
-import org.antlr.v4.runtime.CharStreams
-import org.antlr.v4.runtime.CommonTokenStream
-import org.antlr.v4.runtime.ParserRuleContext
-import org.antlr.v4.runtime.Token
-import org.antlr.v4.runtime.tree.TerminalNode
+import com.apollographql.apollo.compiler.ast.Document
+import com.apollographql.apollo.compiler.ast.Value
 import java.io.File
-import java.io.InputStream
+import java.util.UUID
 
-fun File.graphqlLexer(): GraphqlLexer = inputStream().graphqlLexer()
+fun File.graphqlParser(
+        sourceId: String = UUID.randomUUID().toString(),
+        withAstLocation: Boolean = true
+) = DocumentParser(FileDocumentSource(source = this), withAstLocation)
 
-fun File.graphqlParser(): GraphqlParser = inputStream().graphqlParser()
+fun String.graphqlParser(
+        sourceId: String = UUID.randomUUID().toString(),
+        withAstLocation: Boolean = false
+) = DocumentParser(StringDocumentSource(id = sourceId, source = this), withAstLocation)
 
-fun InputStream.graphqlLexer() = GraphqlLexer(CharStreams.fromStream(this))
+fun File.parseGraphqlDocument(
+        sourceId: String = UUID.randomUUID().toString(),
+        withAstLocation: Boolean = true
+): Document = graphqlParser(sourceId, withAstLocation).documentAst()
+fun String.parseGraphqlDocument(
+        sourceId: String = UUID.randomUUID().toString(),
+        withAstLocation: Boolean = true
+): Document = graphqlParser(sourceId, withAstLocation).documentAst()
 
-fun InputStream.graphqlParser() = GraphqlParser(CommonTokenStream(graphqlLexer()))
-
-fun String.graphqlLexer() = GraphqlLexer(CharStreams.fromString(this))
-
-fun String.graphqlParser() = GraphqlParser(CommonTokenStream(graphqlLexer()))
-
-data class Point(val line: Int, val char: Int)
-data class Location(val start: Point, val end: Point)
-
-val Token.startPoint get() = Point(line, charPositionInLine)
-val Token.endPoint get() = Point(line, charPositionInLine + text.length)
-val Token.location get() = Location(startPoint, endPoint)
-
-val ParserRuleContext.startPoint get() = start.startPoint
-val ParserRuleContext.endPoint get() = stop.endPoint
-val ParserRuleContext.location get() = Location(startPoint, endPoint)
-val ParserRuleContext.astLocation get() = AstLocation(start.startIndex, start.line, start.charPositionInLine)
+fun String.parseGraphqlValue(const: Boolean = true, withAstLocation: Boolean = false): Value =
+        graphqlParser("value-string", withAstLocation).valueAst(const)
 
 class ParseError(message: String) : RuntimeException()
-
-val TerminalNode.intValue: Int get() = symbol.text.toInt()
-val TerminalNode.floatValue: Double get() = symbol.text.toDouble()
-val TerminalNode.stringValue: String get() = symbol.text
-val TerminalNode.booleanValue: Boolean get() = symbol.text.toBoolean()

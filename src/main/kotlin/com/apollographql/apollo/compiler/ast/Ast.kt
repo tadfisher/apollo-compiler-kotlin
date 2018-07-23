@@ -1,6 +1,11 @@
 package com.apollographql.apollo.compiler.ast
 
+import com.apollographql.apollo.compiler.parsing.SourceMapper
+import java.math.BigDecimal
+import java.math.BigInteger
+
 data class AstLocation(
+        val sourceId: String,
         val index: Int,
         val line: Int,
         val column: Int
@@ -47,8 +52,8 @@ sealed class ObjectLikeTypeExtension : TypeExtension() {
 
 data class Document(
         val definitions: List<Definition>,
-        override val location: AstLocation? = null
-        // TODO val sourceMapper: SourceMapper? = null
+        override val location: AstLocation? = null,
+        val sourceMapper: SourceMapper? = null
 ) : AstNode {
     val operations: Map<String?, OperationDefinition> by lazy {
         definitions.filterIsInstance<OperationDefinition>().associateBy { it.name }
@@ -68,18 +73,9 @@ data class Document(
         else { operations[operationName] }
     }
 
-    // TODO fun withoutSourceMapper = copy(sourceMapper = null)
-
     fun merge(other: Document) = listOf(this, other).merge()
 
     operator fun plus(other: Document) = merge(other)
-
-    // TODO val analyzer by lazy { DocumentAnalyzer(this) }
-
-    // TODO lazy val separateOperations: Map<String?, Document> = analyzer.separateOperations
-
-    // TODO fun separateOperation(definition: OperationDefinition) = analyzer.separateOperation(definition)
-    // TODO fun separateOperation(operationName: String?) = analyzer.separateOperation(operationName)
 
     companion object {
         val emptyStub: Document = Document(definitions = listOf(ObjectTypeDefinition(
@@ -110,11 +106,11 @@ data class OperationDefinition(
 enum class OperationType { Query, Mutation, Subscription }
 
 data class Field(
-        val alias: String?,
         val name: String,
-        override val arguments: List<Argument>,
-        override val directives: List<Directive>,
-        override val selections: List<Selection>,
+        val alias: String? = null,
+        override val arguments: List<Argument> = emptyList(),
+        override val directives: List<Directive> = emptyList(),
+        override val selections: List<Selection> = emptyList(),
         override val location: AstLocation? = null
 ) : Selection, SelectionContainer, WithArguments
 
@@ -150,12 +146,12 @@ sealed class Value : AstNode
 sealed class ScalarValue : Value()
 
 data class IntValue(
-        val value: Int,
+        val value: BigInteger,
         override val location: AstLocation? = null
 ) : ScalarValue()
 
 data class FloatValue(
-        val value: Double,
+        val value: BigDecimal,
         override val location: AstLocation? = null
 ) : ScalarValue()
 
@@ -164,7 +160,25 @@ data class StringValue(
         val block: Boolean = false,
         val blockRawValue: String? = null,
         override val location: AstLocation? = null
-) : ScalarValue()
+) : ScalarValue() {
+    companion object {
+        private const val tripleQuote = "\"\"\""
+        private const val quote = "\""
+
+        fun valueOf(input: String, location: AstLocation? = null): StringValue {
+            return if (input.startsWith(tripleQuote) && input.endsWith(tripleQuote)) {
+                StringValue(
+                        value = input.removeSurrounding(tripleQuote).trimIndent(),
+                        block = true,
+                        blockRawValue = input,
+                        location = location
+                )
+            } else {
+                StringValue(value = input.removeSurrounding(quote), location = location)
+            }
+        }
+    }
+}
 
 data class BooleanValue(
         val value: Boolean,
@@ -257,6 +271,8 @@ data class OperationTypeDefinition(
 
 sealed class TypeDefinition : TypeSystemDefinition(), WithDirectives, WithDescription {
     abstract val name: String
+
+    abstract fun rename(newName: String): TypeDefinition
 }
 
 sealed class TypeExtension : TypeSystemExtension(), WithDirectives {
@@ -268,7 +284,9 @@ data class ScalarTypeDefinition(
         override val directives: List<Directive> = emptyList(),
         override val description: StringValue? = null,
         override val location: AstLocation? = null
-) : TypeDefinition()
+) : TypeDefinition() {
+    override fun rename(newName: String) = copy(name = newName)
+}
 
 data class ScalarTypeExtension(
         override val name: String,
@@ -283,7 +301,9 @@ data class ObjectTypeDefinition(
         override val directives: List<Directive> = emptyList(),
         override val description: StringValue? = null,
         override val location: AstLocation? = null
-) : TypeDefinition()
+) : TypeDefinition() {
+    override fun rename(newName: String) = copy(name = newName)
+}
 
 data class ObjectTypeExtension(
         override val name: String,
@@ -302,6 +322,7 @@ data class FieldDefinition(
         override val location: AstLocation? = null
 ) : AstNode, WithDirectives, WithDescription
 
+
 data class InputValueDefinition(
         val name: String,
         val valueType: Type,
@@ -317,7 +338,9 @@ data class InterfaceTypeDefinition(
         override val directives: List<Directive> = emptyList(),
         override val description: StringValue? = null,
         override val location: AstLocation? = null
-) : TypeDefinition()
+) : TypeDefinition() {
+    override fun rename(newName: String) = copy(name = newName)
+}
 
 data class InterfaceTypeExtension(
         override val name: String,
@@ -332,7 +355,9 @@ data class UnionTypeDefinition(
         override val directives: List<Directive> = emptyList(),
         override val description: StringValue? = null,
         override val location: AstLocation? = null
-) : TypeDefinition()
+) : TypeDefinition() {
+    override fun rename(newName: String) = copy(name = newName)
+}
 
 data class UnionTypeExtension(
         override val name: String,
@@ -347,7 +372,9 @@ data class EnumTypeDefinition(
         override val directives: List<Directive> = emptyList(),
         override val description: StringValue? = null,
         override val location: AstLocation? = null
-) : TypeDefinition()
+) : TypeDefinition() {
+    override fun rename(newName: String) = copy(name = newName)
+}
 
 data class EnumValueDefinition(
         val name: String,
@@ -369,7 +396,9 @@ data class InputObjectTypeDefinition(
         override val directives: List<Directive> = emptyList(),
         override val description: StringValue? = null,
         override val location: AstLocation? = null
-) : TypeDefinition(), WithDescription
+) : TypeDefinition(), WithDescription {
+    override fun rename(newName: String) = copy(name = newName)
+}
 
 data class InputObjectTypeExtension(
         override val name: String,
@@ -407,5 +436,5 @@ enum class DirectiveLocation {
     ENUM,
     ENUM_VALUE,
     INPUT_OBJECT,
-    INPUT_FIELD_DEFINITION
+    INPUT_FIELD_DEFINITION;
 }
