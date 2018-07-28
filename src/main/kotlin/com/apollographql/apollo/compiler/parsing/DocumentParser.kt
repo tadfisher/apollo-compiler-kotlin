@@ -1,14 +1,11 @@
 package com.apollographql.apollo.compiler.parsing
 
 import com.apollographql.apollo.compiler.ast.*
-import org.antlr.v4.runtime.CharStreams
 import org.antlr.v4.runtime.CommonTokenStream
 import com.apollographql.apollo.compiler.ast.StringValue as StringValueAst
 import org.antlr.v4.runtime.ParserRuleContext
-import org.antlr.v4.runtime.TokenStream
 import java.math.BigDecimal
 import java.math.BigInteger
-import java.util.UUID
 
 class DocumentParser(
         private val source: DocumentSource,
@@ -45,7 +42,7 @@ class DocumentParser(
 
     fun OperationDefinitionContext.toAst() = OperationDefinition(
             operationType = operationType()?.toAst()
-                    ?: OperationType.Query,
+                    ?: OperationType.QUERY,
             name = Name().text,
             variables = variableDefinitions()?.toAst() ?: emptyList(),
             directives = directives()?.toAst() ?: emptyList(),
@@ -55,9 +52,9 @@ class DocumentParser(
 
     fun OperationTypeContext.toAst(): OperationType {
         return when (text) {
-            "query" -> OperationType.Query
-            "mutation" -> OperationType.Mutation
-            "subscription" -> OperationType.Subscription
+            "query" -> OperationType.QUERY
+            "mutation" -> OperationType.MUTATION
+            "subscription" -> OperationType.SUBSCRIPTION
             else -> throw ParseError("Unknown operation type: $this")
         }
     }
@@ -160,7 +157,7 @@ class DocumentParser(
     fun VariableDefinitionContext.toAst() = VariableDefinition(
             name = variable().Name().text,
             type = type().toAst(),
-            defaultValue = defaultValue()?.toAst(),
+            defaultValue = defaultValue()?.text,
             location = astLocation
     )
 
@@ -300,7 +297,7 @@ class DocumentParser(
     fun InputValueDefinitionContext.toAst() = InputValueDefinition(
             name = Name().text,
             valueType = type().toAst(),
-            defaultValue = defaultValue()?.toAst(),
+            defaultValue = defaultValue()?.text,
             directives = directives_const()?.toAst() ?: emptyList(),
             description = description()?.toAst(),
             location = astLocation
@@ -393,11 +390,11 @@ class DocumentParser(
             location = astLocation
     )
 
-    fun DirectiveLocationsContext.toAst(): List<DirectiveLocation> {
+    fun DirectiveLocationsContext.toAst(): Set<DirectiveLocation> {
         tailrec fun loop(
                 ctx: DirectiveLocationsContext,
-                res: List<DirectiveLocation> = emptyList()
-        ): List<DirectiveLocation> {
+                res: Set<DirectiveLocation> = emptySet()
+        ): Set<DirectiveLocation> {
             val newRes = res + ctx.directiveLocation().toAst()
             val next = ctx.directiveLocations()
             return if (next == null) newRes else loop(next, newRes)

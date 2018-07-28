@@ -28,7 +28,7 @@ class ParserTest {
 
         val expected = Document(
                 definitions = listOf(OperationDefinition(
-                        operationType = OperationType.Query,
+                        operationType = OperationType.QUERY,
                         name = "HeroQuery",
                         selections = listOf(Field(
                                 name = "hero",

@@ -28,6 +28,9 @@ interface ConditionalFragment {
 
 interface WithArguments {
     val arguments: List<Argument>
+
+    val argumentsByName: Map<String, Value>
+        get() = arguments.associate { it.name to it.value }
 }
 
 interface WithDescription {
@@ -36,6 +39,9 @@ interface WithDescription {
 
 interface WithDirectives {
     val directives: List<Directive>
+
+    val directivesByName: Map<String, Map<String, Value>>
+        get() = directives.associate { it.name to it.argumentsByName }
 }
 
 interface SelectionContainer {
@@ -61,6 +67,18 @@ data class Document(
 
     val fragments: Map<String, FragmentDefinition> by lazy {
         definitions.filterIsInstance<FragmentDefinition>().associateBy { it.name }
+    }
+
+    val types: Map<String, TypeDefinition> by lazy {
+        definitions.filterIsInstance<TypeDefinition>().associateBy { it.name }
+    }
+
+    val typeExtensions: Map<String, TypeExtension> by lazy {
+        definitions.filterIsInstance<TypeExtension>().associateBy { it.name }
+    }
+
+    val directives: Map<String, DirectiveDefinition> by lazy {
+        definitions.filterIsInstance<DirectiveDefinition>().associateBy { it.name }
     }
 
     // TODO val source: String = sourceMapper.map
@@ -95,7 +113,7 @@ fun Iterable<Document>.merge(): Document =
         Document(definitions = flatMap { it.definitions })
 
 data class OperationDefinition(
-        val operationType: OperationType = OperationType.Query,
+        val operationType: OperationType = OperationType.QUERY,
         val name: String? = null,
         val variables: List<VariableDefinition> = emptyList(),
         override val directives: List<Directive> = emptyList(),
@@ -103,7 +121,7 @@ data class OperationDefinition(
         override val location: AstLocation? = null
 ) : ExecutableDefinition(), WithDirectives
 
-enum class OperationType { Query, Mutation, Subscription }
+enum class OperationType { QUERY, MUTATION, SUBSCRIPTION }
 
 data class Field(
         val name: String,
@@ -112,7 +130,17 @@ data class Field(
         override val directives: List<Directive> = emptyList(),
         override val selections: List<Selection> = emptyList(),
         override val location: AstLocation? = null
-) : Selection, SelectionContainer, WithArguments
+) : Selection, SelectionContainer, WithArguments {
+    val responseName: String by lazy { alias ?: name }
+
+    val skipIf: VariableValue? by lazy {
+        directivesByName["skip"]?.get("if") as? VariableValue
+    }
+
+    val includeIf: VariableValue? by lazy {
+        directivesByName["include"]?.get("if") as? VariableValue
+    }
+}
 
 data class Argument(
         override val name: String,
@@ -124,14 +152,30 @@ data class FragmentSpread(
         val name: String,
         override val directives: List<Directive>,
         override val location: AstLocation? = null
-) : Selection
+) : Selection {
+    val skipIf: VariableValue? by lazy {
+        directivesByName["skip"]?.get("if") as? VariableValue
+    }
+
+    val includeIf: VariableValue? by lazy {
+        directivesByName["include"]?.get("if") as? VariableValue
+    }
+}
 
 data class InlineFragment(
         override val typeCondition: NamedType?,
         override val directives: List<Directive>,
         override val selections: List<Selection>,
         override val location: AstLocation? = null
-) : Selection, ConditionalFragment, SelectionContainer
+) : Selection, ConditionalFragment, SelectionContainer {
+    val skipIf: VariableValue? by lazy {
+        directivesByName["skip"]?.get("if") as? VariableValue
+    }
+
+    val includeIf: VariableValue? by lazy {
+        directivesByName["include"]?.get("if") as? VariableValue
+    }
+}
 
 data class FragmentDefinition(
         val name: String,
@@ -217,7 +261,7 @@ data class ObjectField(
 data class VariableDefinition(
         val name: String,
         val type: Type,
-        val defaultValue: Value?,
+        val defaultValue: String?,
         override val location: AstLocation? = null
 ) : AstNode
 
@@ -253,7 +297,7 @@ sealed class TypeSystemExtension : Definition()
 
 data class SchemaDefinition(
         val operationTypes: List<OperationTypeDefinition>,
-        override val directives: List<Directive>,
+        override val directives: List<Directive> = emptyList(),
         override val location: AstLocation? = null
 ) : TypeSystemDefinition(), WithDirectives
 
@@ -320,13 +364,19 @@ data class FieldDefinition(
         override val directives: List<Directive> = emptyList(),
         override val description: StringValue? = null,
         override val location: AstLocation? = null
-) : AstNode, WithDirectives, WithDescription
-
+) : AstNode, WithDirectives, WithDescription {
+    val deprecationReason: String? by lazy {
+        directivesByName["deprecated"]?.let { args ->
+            (args["reason"] as? StringValue)?.value
+                    ?: "No longer supported"
+        }
+    }
+}
 
 data class InputValueDefinition(
         val name: String,
         val valueType: Type,
-        val defaultValue: Value?,
+        val defaultValue: String?,
         override val directives: List<Directive> = emptyList(),
         override val description: StringValue? = null,
         override val location: AstLocation? = null
@@ -381,7 +431,14 @@ data class EnumValueDefinition(
         override val directives: List<Directive> = emptyList(),
         override val description: StringValue? = null,
         override val location: AstLocation? = null
-) : AstNode, WithDirectives, WithDescription
+) : AstNode, WithDirectives, WithDescription {
+    val deprecationReason: String? by lazy {
+        directivesByName["deprecated"]?.let { args ->
+            (args["reason"] as? StringValue)?.value
+                    ?: "No longer supported"
+        }
+    }
+}
 
 data class EnumTypeExtension(
         override val name: String,
@@ -410,7 +467,7 @@ data class InputObjectTypeExtension(
 data class DirectiveDefinition(
         val name: String,
         val arguments: List<InputValueDefinition>,
-        val locations: List<DirectiveLocation>,
+        val locations: Set<DirectiveLocation>,
         override val description: StringValue? = null,
         override val location: AstLocation? = null
 ) : TypeSystemDefinition(), WithDescription

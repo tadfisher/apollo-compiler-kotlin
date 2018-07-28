@@ -1,5 +1,6 @@
 package com.apollographql.apollo.compiler.introspection
 
+import com.apollographql.apollo.compiler.ast.DirectiveLocation
 import com.squareup.moshi.JsonClass
 
 enum class TypeKind {
@@ -137,6 +138,6 @@ data class IntrospectionNonNullTypeRef(
 data class IntrospectionDirective(
     val name: String,
     val description: String?,
-    // TODO val locations: Set<DirectiveLocation>
+    val locations: Set<DirectiveLocation>,
     val args: List<IntrospectionInputValue>
 )
