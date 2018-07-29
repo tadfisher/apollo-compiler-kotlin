@@ -20,12 +20,12 @@ class DocumentIrResolver(val document: Document) {
             linkedMapOf<OperationDefinition, List<TypeDefinition>>()
 
 
-    fun resolveExecutableIr(): ExecutableIr {
-        // Shake the tree
-        val operations = document.operations
-        val fragments = operations.values.map { it.collectFragments() }
-        TODO()
-    }
+//    fun resolveExecutableIr(): ExecutableIr {
+//        // Shake the tree
+//        val operations = document.operations
+//        val fragments = operations.values.map { it.collectFragments() }
+//        TODO()
+//    }
 
     fun SelectionContainer.collectFragmentSpreads(): List<AstFragmentSpread> {
         return fragmentSpreadsCache.getOrPut(this) {

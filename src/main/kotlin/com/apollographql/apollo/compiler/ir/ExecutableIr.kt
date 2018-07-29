@@ -1,6 +1,12 @@
 package com.apollographql.apollo.compiler.ir
 
 import com.apollographql.apollo.api.ResponseField
+import com.apollographql.apollo.api.ResponseField.Type.BOOLEAN
+import com.apollographql.apollo.api.ResponseField.Type.DOUBLE
+import com.apollographql.apollo.api.ResponseField.Type.INT
+import com.apollographql.apollo.api.ResponseField.Type.LIST
+import com.apollographql.apollo.api.ResponseField.Type.LONG
+import com.apollographql.apollo.api.ResponseField.Type.STRING
 import com.apollographql.apollo.compiler.ast.OperationType
 
 data class OperationSpec(
@@ -8,7 +14,7 @@ data class OperationSpec(
         val name: String,
         val operation: OperationType,
         val data: SelectionSetSpec,
-        val variables: List<VariableSpec>
+        val variables: OperationVariablesSpec?
 )
 
 sealed class SelectionSetSpec(
@@ -20,7 +26,6 @@ sealed class SelectionSetSpec(
 data class OperationVariablesSpec(
         val variables: List<VariableSpec>
 )
-
 
 data class OperationTypesSpec(
         val types: List<OperationType>
@@ -59,5 +64,20 @@ data class InlineFragmentSpec(
  */
 data class TypeRef(
         val name: String,
-        val jvmName: String
+        val jvmName: String,
+        val kind: TypeKind,
+        val isOptional: Boolean,
+        val parameters: List<TypeRef>
 )
+
+enum class TypeKind(val readMethod: String, val writeMethod: String) {
+    STRING("readString", "writeString"),
+    INT("readInt", "writeInt"),
+    LONG("readLong", "writeLong"),
+    DOUBLE("readDouble", "writeDouble"),
+    BOOLEAN("readBoolean", "writeBoolean"),
+    ENUM("readString", "writeString"),
+    OBJECT("readObject", "writeObject"),
+    LIST("readList", "writeList"),
+    CUSTOM("readCustomType", "writeCustom")
+}
