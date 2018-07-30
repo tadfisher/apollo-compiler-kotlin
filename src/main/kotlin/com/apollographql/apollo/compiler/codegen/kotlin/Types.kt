@@ -33,10 +33,10 @@ fun TypeRef.typeName(nullableWrapper: ClassName? = null): TypeName {
 
 fun TypeRef.initializerCode(initialValue: Value, nullableWrapper: ClassName? = null): CodeBlock {
     val valueCode = when (initialValue) {
-        is EnumValue -> CodeBlock.of("%T.%L", typeName().asNonNullable(), initialValue.code())
+        is EnumValue -> CodeBlock.of("%T.%L", typeName().asNonNullable(), initialValue.valueCode())
         is ObjectValue ->
-            CodeBlock.of("%[%T(%L)%]", typeName().asNonNullable(), initialValue.code())
-        else -> initialValue.code()
+            CodeBlock.of("%[%T(%L)%]", typeName().asNonNullable(), initialValue.valueCode())
+        else -> initialValue.valueCode()
     }
     return if (isOptional && nullableWrapper != null) {
         nullableWrapper.wrapOptionalValue(valueCode)

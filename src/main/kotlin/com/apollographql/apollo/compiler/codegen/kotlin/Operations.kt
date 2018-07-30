@@ -5,14 +5,17 @@ import com.apollographql.apollo.api.InputFieldWriter
 import com.apollographql.apollo.api.Mutation
 import com.apollographql.apollo.api.Operation
 import com.apollographql.apollo.api.Query
+import com.apollographql.apollo.api.ResponseField
 import com.apollographql.apollo.api.Subscription
 import com.apollographql.apollo.compiler.ast.OperationType
 import com.apollographql.apollo.compiler.ast.OperationType.MUTATION
 import com.apollographql.apollo.compiler.ast.OperationType.QUERY
 import com.apollographql.apollo.compiler.ast.OperationType.SUBSCRIPTION
 import com.apollographql.apollo.compiler.codegen.kotlin.ClassNames.INPUT_OPTIONAL
+import com.apollographql.apollo.compiler.ir.OperationDataSpec
 import com.apollographql.apollo.compiler.ir.OperationSpec
 import com.apollographql.apollo.compiler.ir.OperationVariablesSpec
+import com.apollographql.apollo.compiler.ir.SelectionSetSpec
 import com.apollographql.apollo.compiler.ir.TypeKind.BOOLEAN
 import com.apollographql.apollo.compiler.ir.TypeKind.CUSTOM
 import com.apollographql.apollo.compiler.ir.TypeKind.DOUBLE
@@ -34,6 +37,7 @@ import com.squareup.kotlinpoet.PropertySpec
 import com.squareup.kotlinpoet.TypeName
 import com.squareup.kotlinpoet.TypeSpec
 import com.squareup.kotlinpoet.asClassName
+import javafx.beans.property.Property
 import javax.annotation.Generated
 
 fun OperationSpec.typeSpec(packageName: String): TypeSpec {
@@ -232,6 +236,16 @@ fun TypeRef.writeCustomCode(varName: String): CodeBlock {
     val valueCode = typeName.unwrapOptionalValue(varName, false)
     return CodeBlock.of("%L.%L(%S, %T, %L)\n",
             writerParam, kind.writeMethod, varName, ClassName.bestGuess(name), valueCode)
+}
+
+fun OperationDataSpec.typeSpec(): TypeSpec {
+    return TypeSpec.classBuilder("Data")
+            .addModifiers(KModifier.DATA)
+            .addSuperinterface(Operation.Data::class.asClassName())
+            .addType(TypeSpec.companionObjectBuilder()
+                    .addProperty(selections.responseFieldsPropertySpec())
+                    .build())
+            .build()
 }
 
 private const val writerParam = "_writer"

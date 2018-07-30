@@ -3,19 +3,24 @@ package com.apollographql.apollo.compiler.ir
 import com.apollographql.apollo.api.ResponseField
 import com.apollographql.apollo.compiler.ast.OperationType
 import com.apollographql.apollo.compiler.ast.Value
+import com.apollographql.apollo.compiler.ast.VariableValue
 
 data class OperationSpec(
         val id: String,
         val name: String,
         val operation: OperationType,
-        val data: SelectionSetSpec,
+        val data: OperationDataSpec,
         val variables: OperationVariablesSpec?
 )
 
 sealed class SelectionSetSpec(
-        val fields: List<FieldSpec>,
+        val fields: List<ResponseFieldSpec>,
         val fragmentSpreads: List<FragmentSpreadSpec>,
         val inlineFragments: List<InlineFragmentSpec>
+)
+
+data class OperationDataSpec(
+        val selections: SelectionSetSpec
 )
 
 data class OperationVariablesSpec(
@@ -35,11 +40,15 @@ data class VariableSpec(
 /**
  * Resolved field; includes type and input values from the field definition.
  */
-data class FieldSpec(
+data class ResponseFieldSpec(
         val name: String,
         val responseName: String,
         val type: TypeRef,
         val responseType: ResponseField.Type,
+        val arguments: List<ArgumentSpec>,
+        val skipIf: List<VariableValue>,
+        val includeIf: List<VariableValue>,
+        val typeConditions: List<TypeRef>,
         val selections: SelectionSetSpec?
 )
 
@@ -51,6 +60,12 @@ data class FragmentSpreadSpec(
 data class InlineFragmentSpec(
         val typeCondition: TypeRef?,
         val selections: SelectionSetSpec
+)
+
+data class ArgumentSpec(
+        val name: String,
+        val value: Value,
+        val type: TypeRef
 )
 
 /**
