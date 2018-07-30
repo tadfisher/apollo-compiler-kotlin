@@ -1,7 +1,8 @@
 package com.apollographql.apollo.compiler.codegen.kotlin
 
-import com.apollographql.apollo.api.Input
-import com.apollographql.apollo.api.internal.Optional
+import com.apollographql.apollo.compiler.ast.EnumValue
+import com.apollographql.apollo.compiler.ast.ObjectValue
+import com.apollographql.apollo.compiler.ast.Value
 import com.apollographql.apollo.compiler.codegen.kotlin.ClassNames.APOLLO_OPTIONAL
 import com.apollographql.apollo.compiler.codegen.kotlin.ClassNames.GUAVA_OPTIONAL
 import com.apollographql.apollo.compiler.codegen.kotlin.ClassNames.INPUT_OPTIONAL
@@ -12,7 +13,6 @@ import com.squareup.kotlinpoet.CodeBlock
 import com.squareup.kotlinpoet.ParameterizedTypeName
 import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import com.squareup.kotlinpoet.TypeName
-import com.squareup.kotlinpoet.asClassName
 
 fun TypeRef.typeName(nullableWrapper: ClassName? = null): TypeName {
     val rawType = ClassName.bestGuess(jvmName)
@@ -28,6 +28,20 @@ fun TypeRef.typeName(nullableWrapper: ClassName? = null): TypeName {
         nullableWrapper?.parameterizedBy(typeName) ?: typeName.asNullable()
     } else {
         typeName
+    }
+}
+
+fun TypeRef.initializerCode(initialValue: Value, nullableWrapper: ClassName? = null): CodeBlock {
+    val valueCode = when (initialValue) {
+        is EnumValue -> CodeBlock.of("%T.%L", typeName().asNonNullable(), initialValue.code())
+        is ObjectValue ->
+            CodeBlock.of("%[%T(%L)%]", typeName().asNonNullable(), initialValue.code())
+        else -> initialValue.code()
+    }
+    return if (isOptional && nullableWrapper != null) {
+        nullableWrapper.wrapOptionalValue(valueCode)
+    } else {
+        valueCode
     }
 }
 
@@ -84,10 +98,19 @@ fun TypeName.unwrapOptionalValue(
     }
 }
 
-object ClassNames {
-    val APOLLO_OPTIONAL = Optional::class.asClassName()
-    val GUAVA_OPTIONAL = ClassName("com.google.common.base", "Optional")
-    val JAVA_OPTIONAL = ClassName("java.util", "Optional")
-    val INPUT_OPTIONAL = Input::class.asClassName()
-    val LIST = List::class.asClassName()
+fun TypeName.wrapOptionalValue(value: CodeBlock): CodeBlock {
+    return if (isOptional() && this is ParameterizedTypeName) {
+        CodeBlock.of("%T.fromNullable(%L)", rawType, value)
+    } else {
+        value
+    }
 }
+
+fun TypeName.defaultOptionalValue(): CodeBlock {
+    return if (isOptional() && this is ParameterizedTypeName) {
+        CodeBlock.of("%T.absent", rawType)
+    } else {
+        CodeBlock.of("")
+    }
+}
+

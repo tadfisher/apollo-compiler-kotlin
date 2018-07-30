@@ -23,8 +23,8 @@ import com.apollographql.apollo.compiler.ir.TypeKind.LONG
 import com.apollographql.apollo.compiler.ir.TypeKind.OBJECT
 import com.apollographql.apollo.compiler.ir.TypeKind.STRING
 import com.apollographql.apollo.compiler.ir.TypeRef
-import com.apollographql.apollo.compiler.ir.VariableSpec
 import com.squareup.kotlinpoet.ANY
+import com.squareup.kotlinpoet.AnnotationSpec
 import com.squareup.kotlinpoet.ClassName
 import com.squareup.kotlinpoet.CodeBlock
 import com.squareup.kotlinpoet.FunSpec
@@ -34,6 +34,7 @@ import com.squareup.kotlinpoet.PropertySpec
 import com.squareup.kotlinpoet.TypeName
 import com.squareup.kotlinpoet.TypeSpec
 import com.squareup.kotlinpoet.asClassName
+import javax.annotation.Generated
 
 fun OperationSpec.typeSpec(packageName: String): TypeSpec {
     val className = ClassName(packageName, name.capitalize())
@@ -45,7 +46,15 @@ fun OperationSpec.typeSpec(packageName: String): TypeSpec {
     }
 
     return TypeSpec.classBuilder(className)
+            .addAnnotation(AnnotationSpec.builder(Generated::class)
+                    .addMember("%S", "Apollo GraphQL")
+                    .build())
             .addSuperinterface(operation.typeName(dataType, dataType.asNullable(), variablesType))
+            .primaryConstructor(FunSpec.constructorBuilder()
+                    .addParameters(variables?.variables?.map {
+                        it.operationParameterSpec(INPUT_OPTIONAL)
+                    } ?: emptyList())
+                    .build())
             .apply { if (variables != null) addType(variables.typeSpec(variablesType)) }
             .build()
 }
@@ -63,54 +72,47 @@ fun OperationType.typeName(
 fun OperationVariablesSpec.typeSpec(className: ClassName): TypeSpec {
     val valueMapPropertySpec = PropertySpec.builder("valueMap",
             Map::class.asClassName().parameterizedBy(String::class.asClassName(), ANY))
-            .addAnnotation(Transient::class)
+            .addAnnotation(AnnotationSpec.builder(Transient::class)
+                    .useSiteTarget(AnnotationSpec.UseSiteTarget.DELEGATE)
+                    .build())
             .addModifiers(KModifier.PRIVATE)
-            .initializer("""
-                    listOfNotNull(
-                        %L
-                    ).toMap()
-                """.trimIndent(), variables.joinToString(",\n") { it.valueMapEntry() }
-            )
+            // TODO This generates too much indentation; see https://github.com/square/kotlinpoet/issues/259
+            .delegate("""
+                lazy {
+                %>listOfNotNull(
+                %>%L
+                %<).toMap()
+                %<}
+            """.trimIndent(),
+                    CodeBlock.builder().apply {
+                        variables.dropLast(1).forEach { add("%L,\n", it.valueMapEntryCode()) }
+                        variables.lastOrNull()?.let { add("%L", it.valueMapEntryCode()) }
+                    }.build())
             .build()
 
     val valueMapFunSpec = FunSpec.builder("valueMap")
             .addModifiers(KModifier.OVERRIDE)
-            .returns(Map::class.parameterizedBy(String::class, Any::class))
-            .addCode(valueMapPropertySpec.name)
+            .addCode("return %L", valueMapPropertySpec.name)
             .build()
 
-    val marshallerLambdaCode = CodeBlock.of("""
-        %T { writer ->
-            %L
-        }
-    """.trimIndent(),
-            InputFieldMarshaller::class,
-            variables.map { it.type.writeValueCode(it.name) }
-                    .fold(CodeBlock.builder(), CodeBlock.Builder::add)
-                    .build()
-    )
+    val marshallerLambdaCode = CodeBlock.of("%T { %L ->\n%>%L%<}",
+            InputFieldMarshaller::class, writerParam,
+            CodeBlock.builder().apply {
+                variables.forEach { add(it.type.writeValueCode(it.name)) }
+            }.build())
 
     val marshallerFunSpec = FunSpec.builder("marshaller")
             .addModifiers(KModifier.OVERRIDE)
-            .returns(InputFieldMarshaller::class)
             .addStatement("return %L", marshallerLambdaCode)
             .build()
 
     return TypeSpec.classBuilder(className)
-            .addSuperinterface(Operation.Variables::class.asClassName())
+            .addModifiers(KModifier.DATA)
             .primaryConstructor(FunSpec.constructorBuilder()
-                    .addModifiers(KModifier.INTERNAL)
-                    .apply { variables.forEach {
-                        addParameter(it.name, it.type.typeName(INPUT_OPTIONAL)) }
-                    }
+                    .addParameters(variables.map { it.variablesParameterSpec(INPUT_OPTIONAL) })
                     .build())
-            .apply {
-                variables.forEach {
-                    addProperty(PropertySpec.builder(it.name, it.type.typeName())
-                            .initializer(it.name)
-                            .build())
-                }
-            }
+            .addSuperinterface(Operation.Variables::class.asClassName())
+            .addProperties(variables.map { it.propertySpec(INPUT_OPTIONAL) })
             .addProperty(valueMapPropertySpec)
             .addFunction(valueMapFunSpec)
             .addFunction(marshallerFunSpec)
@@ -196,7 +198,7 @@ fun TypeRef.writeListItemCode(): CodeBlock {
 
     fun writeCustom(): CodeBlock {
         return CodeBlock.of(" %L.%L(%T, it) ",
-                itemWriterParam, kind.writeMethod, typeName().unwrapOptionalType())
+                itemWriterParam, kind.writeMethod, ClassName.bestGuess(name))
     }
 
     fun writeEnum(): CodeBlock {
@@ -229,15 +231,7 @@ fun TypeRef.writeCustomCode(varName: String): CodeBlock {
     val typeName = typeName(ClassNames.INPUT_OPTIONAL)
     val valueCode = typeName.unwrapOptionalValue(varName, false)
     return CodeBlock.of("%L.%L(%S, %T, %L)\n",
-            writerParam, kind.writeMethod, varName, typeName.unwrapOptionalType(), valueCode)
-}
-
-fun VariableSpec.valueMapEntry(): String {
-    return if (type.isOptional) {
-        "(\"$name\" to $name).takeIf { $name.defined }"
-    } else {
-        "\"$name\" to $name"
-    }
+            writerParam, kind.writeMethod, varName, ClassName.bestGuess(name), valueCode)
 }
 
 private const val writerParam = "_writer"

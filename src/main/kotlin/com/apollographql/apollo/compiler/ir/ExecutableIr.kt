@@ -1,13 +1,8 @@
 package com.apollographql.apollo.compiler.ir
 
 import com.apollographql.apollo.api.ResponseField
-import com.apollographql.apollo.api.ResponseField.Type.BOOLEAN
-import com.apollographql.apollo.api.ResponseField.Type.DOUBLE
-import com.apollographql.apollo.api.ResponseField.Type.INT
-import com.apollographql.apollo.api.ResponseField.Type.LIST
-import com.apollographql.apollo.api.ResponseField.Type.LONG
-import com.apollographql.apollo.api.ResponseField.Type.STRING
 import com.apollographql.apollo.compiler.ast.OperationType
+import com.apollographql.apollo.compiler.ast.Value
 
 data class OperationSpec(
         val id: String,
@@ -34,7 +29,7 @@ data class OperationTypesSpec(
 data class VariableSpec(
         val name: String,
         val type: TypeRef,
-        val defaultValue: String?
+        val defaultValue: Value?
 )
 
 /**
