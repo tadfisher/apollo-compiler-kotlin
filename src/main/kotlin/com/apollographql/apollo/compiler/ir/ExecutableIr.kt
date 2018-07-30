@@ -13,10 +13,10 @@ data class OperationSpec(
         val variables: OperationVariablesSpec?
 )
 
-sealed class SelectionSetSpec(
+data class SelectionSetSpec(
         val fields: List<ResponseFieldSpec>,
-        val fragmentSpreads: List<FragmentSpreadSpec>,
-        val inlineFragments: List<InlineFragmentSpec>
+        val fragmentSpreads: List<FragmentSpreadSpec> = emptyList(),
+        val inlineFragments: List<InlineFragmentSpec> = emptyList()
 )
 
 data class OperationDataSpec(
@@ -42,14 +42,14 @@ data class VariableSpec(
  */
 data class ResponseFieldSpec(
         val name: String,
-        val responseName: String,
+        val responseName: String = name,
         val type: TypeRef,
         val responseType: ResponseField.Type,
-        val arguments: List<ArgumentSpec>,
-        val skipIf: List<VariableValue>,
-        val includeIf: List<VariableValue>,
-        val typeConditions: List<TypeRef>,
-        val selections: SelectionSetSpec?
+        val arguments: List<ArgumentSpec> = emptyList(),
+        val skipIf: List<VariableValue> = emptyList(),
+        val includeIf: List<VariableValue> = emptyList(),
+        val typeConditions: List<TypeRef> = emptyList(),
+        val selections: SelectionSetSpec? = null
 )
 
 data class FragmentSpreadSpec(

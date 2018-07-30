@@ -4,6 +4,7 @@ import com.apollographql.apollo.api.InputFieldMarshaller
 import com.apollographql.apollo.api.InputFieldWriter.ListWriter
 import com.apollographql.apollo.api.ScalarType
 import com.apollographql.apollo.compiler.ast.EnumValue
+import com.apollographql.apollo.compiler.codegen.dropImports
 import com.apollographql.apollo.compiler.ir.OperationVariablesSpec
 import com.apollographql.apollo.compiler.ir.TypeKind
 import com.apollographql.apollo.compiler.ir.TypeRef
@@ -430,7 +431,4 @@ data class ColorInput(val red: Int, val green: Int, val blue: Int) {
         writer.writeInt("blue", blue)
     }
 }
-
-private fun String.dropImports() =
-        lines().dropWhile { it.startsWith("import") || it.isBlank() }.joinToString("\n")
 
