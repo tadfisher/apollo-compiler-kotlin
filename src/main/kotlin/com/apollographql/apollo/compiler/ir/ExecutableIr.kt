@@ -4,6 +4,7 @@ import com.apollographql.apollo.api.ResponseField
 import com.apollographql.apollo.compiler.ast.OperationType
 import com.apollographql.apollo.compiler.ast.Value
 import com.apollographql.apollo.compiler.ast.VariableValue
+import kotlin.reflect.KClass
 
 data class OperationSpec(
         val id: String,
@@ -74,10 +75,11 @@ data class ArgumentSpec(
  */
 data class TypeRef(
         val name: String,
-        val jvmName: String,
+        val jvmName: String = name,
         val kind: TypeKind,
-        val isOptional: Boolean,
-        val parameters: List<TypeRef>
+        val isOptional: Boolean = true,
+        val optionalType: KClass<*>? = null,
+        val parameters: List<TypeRef> = emptyList()
 )
 
 enum class TypeKind(val readMethod: String, val writeMethod: String) {

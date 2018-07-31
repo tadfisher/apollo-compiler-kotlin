@@ -91,51 +91,96 @@ class SelectionsTest {
                 """.trimIndent())
     }
 
+    @Test
+    fun `emits response field marshaller function`() {
+        val spec = SelectionSetSpec(
+                fields = listOf(
+                        ResponseFieldSpec(
+                                name = "number",
+                                type = floatRef,
+                                responseType = ResponseField.Type.DOUBLE
+                        ),
+                        ResponseFieldSpec(
+                                name = "unit",
+                                type = unitRef,
+                                responseType = ResponseField.Type.ENUM
+                        ),
+                        ResponseFieldSpec(
+                                name = "heroWithReview",
+                                type = heroRef,
+                                responseType = ResponseField.Type.OBJECT
+                        ),
+                        ResponseFieldSpec(
+                                name = "list",
+                                type = listRef,
+                                responseType = ResponseField.Type.LIST
+                        ),
+                        ResponseFieldSpec(
+                                name = "custom",
+                                type = customRef,
+                                responseType = ResponseField.Type.CUSTOM
+                        )
+                )
+        )
+
+        assertThat(spec.responseMarshallerFunSpec().wrapInFile().toString().dropImports().trim())
+                .isEqualTo("""
+                    override fun marshaller() = ResponseFieldMarshaller { _writer ->
+                        _writer.writeDouble("responseFields[0]", number)
+                        _writer.writeString("responseFields[1]", unit?.rawValue())
+                        _writer.writeObject("responseFields[2]", heroWithReview?.marshaller())
+                        _writer.writeList("responseFields[3]", ResponseWriter.ListWriter { _itemWriter ->
+                            list?.forEach { _itemWriter.writeString(it) }
+                        })
+                        _writer.writeCustom("responseFields[4]", CustomType.CUSTOM, custom)
+                    }
+                """.trimIndent())
+    }
+
     private val heroRef = TypeRef(
             name = "HeroWithReview",
-            jvmName = "HeroWithReview",
-            kind = TypeKind.OBJECT,
-            isOptional = true,
-            parameters = emptyList()
+            kind = TypeKind.OBJECT
     )
 
     private val episodeRef = TypeRef(
             name = "Episode",
-            jvmName = "Episode",
-            kind = TypeKind.ENUM,
-            isOptional = false,
-            parameters = emptyList()
+            kind = TypeKind.ENUM
     )
 
     private val unitRef = TypeRef(
             name = "Unit",
             jvmName = Unit::class.qualifiedName!!,
-            kind = TypeKind.ENUM,
-            isOptional = false,
-            parameters = emptyList()
+            kind = TypeKind.ENUM
     )
 
     private val stringRef = TypeRef(
             name = "String",
             jvmName = String::class.qualifiedName!!,
-            kind = TypeKind.STRING,
-            isOptional = true,
-            parameters = emptyList()
+            kind = TypeKind.STRING
     )
 
     private val floatRef = TypeRef(
             name = "Float",
             jvmName = Double::class.qualifiedName!!,
-            kind = TypeKind.DOUBLE,
+            kind = TypeKind.DOUBLE
+    )
+
+    private val listRef = TypeRef(
+            name = "List",
+            jvmName = List::class.qualifiedName!!,
+            kind = TypeKind.LIST,
             isOptional = true,
-            parameters = emptyList()
+            parameters = listOf(stringRef)
     )
 
     private val reviewRef = TypeRef(
             name = "Review",
             jvmName = "Review",
-            kind = TypeKind.OBJECT,
-            isOptional = true,
-            parameters = emptyList()
+            kind = TypeKind.OBJECT
+    )
+
+    private val customRef = TypeRef(
+            name = "CustomType.CUSTOM",
+            kind = TypeKind.CUSTOM
     )
 }
