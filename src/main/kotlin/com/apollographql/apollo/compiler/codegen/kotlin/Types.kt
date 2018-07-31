@@ -1,14 +1,18 @@
 package com.apollographql.apollo.compiler.codegen.kotlin
 
+import com.apollographql.apollo.api.ResponseField
 import com.apollographql.apollo.compiler.ast.EnumValue
 import com.apollographql.apollo.compiler.ast.ObjectValue
 import com.apollographql.apollo.compiler.ast.Value
 import com.apollographql.apollo.compiler.codegen.kotlin.ClassNames.APOLLO_OPTIONAL
+import com.apollographql.apollo.compiler.codegen.kotlin.ClassNames.APOLLO_UTILS
 import com.apollographql.apollo.compiler.codegen.kotlin.ClassNames.GUAVA_OPTIONAL
 import com.apollographql.apollo.compiler.codegen.kotlin.ClassNames.INPUT_FIELD_LIST_WRITER
 import com.apollographql.apollo.compiler.codegen.kotlin.ClassNames.INPUT_OPTIONAL
 import com.apollographql.apollo.compiler.codegen.kotlin.ClassNames.JAVA_OPTIONAL
+import com.apollographql.apollo.compiler.codegen.kotlin.ClassNames.RESPONSE_LIST_READER
 import com.apollographql.apollo.compiler.codegen.kotlin.ClassNames.RESPONSE_LIST_WRITER
+import com.apollographql.apollo.compiler.codegen.kotlin.ClassNames.RESPONSE_OBJECT_READER
 import com.apollographql.apollo.compiler.ir.TypeKind
 import com.apollographql.apollo.compiler.ir.TypeRef
 import com.squareup.kotlinpoet.ClassName
@@ -18,7 +22,7 @@ import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import com.squareup.kotlinpoet.TypeName
 import com.squareup.kotlinpoet.asClassName
 
-fun TypeRef.typeName(): TypeName {
+fun TypeRef.typeName(maybeOptional: Boolean = true): TypeName {
     val rawType = ClassName.bestGuess(jvmName)
     val typeName = if (parameters.isNotEmpty()) {
         rawType.parameterizedBy(
@@ -28,7 +32,7 @@ fun TypeRef.typeName(): TypeName {
         rawType
     }
 
-    return if (isOptional) {
+    return if (maybeOptional && isOptional) {
         optionalType?.asClassName()?.parameterizedBy(typeName) ?: typeName.asNullable()
     } else {
         typeName
@@ -49,9 +53,134 @@ fun TypeRef.initializerCode(initialValue: Value): CodeBlock {
     }
 }
 
+fun TypeRef.readResponseFieldValueCode(
+        varName: String,
+        propertyName: String
+): CodeBlock {
+    val typeName = typeName(false).let { if (isOptional) it.asNullable() else it }
+    return CodeBlock.of("val %L: %T = %L",
+            propertyName, typeName, wrapNullCheck(readValueCode(varName), propertyName))
+}
+
+fun TypeRef.readValueCode(
+        varName: String,
+        readerParam: String = Types.defaultReaderParam
+): CodeBlock {
+    return when (kind) {
+        TypeKind.STRING,
+        TypeKind.INT,
+        TypeKind.LONG,
+        TypeKind.DOUBLE,
+        TypeKind.BOOLEAN -> readScalarCode(varName, readerParam)
+        TypeKind.ENUM -> readEnumCode(varName, readerParam)
+        TypeKind.OBJECT -> readObjectCode(varName, readerParam)
+        TypeKind.LIST -> readListCode(varName, readerParam)
+        TypeKind.CUSTOM -> readCustomCode(varName, readerParam)
+    }
+}
+
+fun TypeRef.readScalarCode(varName: String, readerParam: String): CodeBlock {
+    return CodeBlock.of("%L.%L(%L)", readerParam, kind.readMethod, varName)
+}
+
+fun TypeRef.readEnumCode(
+        varName: String,
+        readerParam: String
+): CodeBlock {
+    return CodeBlock.of("""
+        %L.%L(%L)?.let {
+        %>%T.%L(it)
+        %<}
+    """.trimIndent(), readerParam, TypeKind.STRING.readMethod, varName, typeName(false),
+            Types.enumSafeValueOfFun)
+}
+
+fun TypeRef.readObjectCode(
+        varName: String,
+        readerParam: String
+): CodeBlock {
+    val typeName = typeName(false)
+    val readerLambda = CodeBlock.of("""
+        %T {
+        %>%T.%L.map(it)
+        %<}
+    """.trimIndent(),
+            RESPONSE_OBJECT_READER.parameterizedBy(typeName), typeName, Types.mapperObjectName)
+
+    return CodeBlock.of("%L.%L(%L, %L)", readerParam, kind.readMethod, varName, readerLambda)
+}
+
+fun TypeRef.readListCode(
+        varName: String,
+        readerParam: String
+): CodeBlock {
+    val typeName = typeName(false)
+    val fieldType = parameters[0]
+    val readerLambda = CodeBlock.of("""
+        %T { %L ->
+        %>%L
+        %<}
+    """.trimIndent(),
+            RESPONSE_LIST_READER.parameterizedBy(typeName), Types.defaultItemReaderParam,
+            fieldType.readListItemStatement(Types.defaultItemReaderParam))
+
+    return CodeBlock.of("%L.%L(%L, %L)", readerParam, kind.readMethod, varName, readerLambda)
+}
+
+fun TypeRef.readListItemStatement(itemReaderParam: String): CodeBlock {
+    fun readScalar() = CodeBlock.of("%L.%L()", itemReaderParam, kind.readMethod)
+
+    fun readEnum(): CodeBlock {
+        return CodeBlock.of("%T.%L(%L.%L())", typeName(false), Types.enumSafeValueOfFun,
+                itemReaderParam, kind.readMethod)
+    }
+
+    fun readObject(): CodeBlock {
+        val typeName = typeName(false)
+        val readerLambda = CodeBlock.of("""
+            %T {
+            %>%T.%L.map(it)
+            %<}
+        """.trimIndent(),
+                RESPONSE_OBJECT_READER.parameterizedBy(typeName), typeName, Types.mapperObjectName)
+
+        return CodeBlock.of("%L.%L(%L)", itemReaderParam, kind.readMethod, readerLambda)
+    }
+
+    fun readList(): CodeBlock {
+        val fieldType = parameters[0]
+        val readItemCode = fieldType.readListItemStatement("it")
+        val readerLambda = CodeBlock.of("""
+            %T {
+            %>%L
+            %<}
+        """.trimIndent(), RESPONSE_LIST_READER, readItemCode)
+        return CodeBlock.of("%L.%L(%L)", itemReaderParam, kind.readMethod, readerLambda)
+    }
+
+    fun readCustom() =
+            CodeBlock.of("%L.%L(%T)", itemReaderParam, kind.readMethod, ClassName.bestGuess(name))
+
+    return when (kind) {
+        TypeKind.STRING,
+        TypeKind.INT,
+        TypeKind.LONG,
+        TypeKind.DOUBLE,
+        TypeKind.BOOLEAN -> readScalar()
+        TypeKind.ENUM -> readEnum()
+        TypeKind.OBJECT -> readObject()
+        TypeKind.LIST -> readList()
+        TypeKind.CUSTOM -> readCustom()
+    }
+}
+
+fun TypeRef.readCustomCode(varName: String, readerParam: String): CodeBlock {
+    return CodeBlock.of("%L.%L(%L as %T)",
+            readerParam, kind.readMethod, varName, ResponseField.CustomTypeField::class)
+}
+
 fun TypeRef.writeInputFieldValueCode(varName: String): CodeBlock {
-    return writeValueCode(varName = varName, listWriterType = INPUT_FIELD_LIST_WRITER
-    ).let {
+    return writeValueCode(varName, listWriterType = INPUT_FIELD_LIST_WRITER).let {
         if (isOptional) {
             CodeBlock.of("""
                 if (%L.defined) {
@@ -287,8 +416,22 @@ fun TypeName.defaultOptionalValue(): CodeBlock {
     }
 }
 
+fun TypeRef.wrapNullCheck(code: CodeBlock, propertyName: String): CodeBlock {
+    return if (!isOptional) {
+        CodeBlock.of("%T.%L(%L, %S)",
+                APOLLO_UTILS, Types.checkNotNullFun, code, "$propertyName == null")
+    } else {
+        code
+    }
+}
+
 object Types {
+    const val defaultReaderParam = "_reader"
+    const val defaultItemReaderParam = "_itemReader"
     const val defaultWriterParam = "_writer"
     const val defaultItemWriterParam = "_itemWriter"
     const val defaultMarshallerParam = "marshaller()"
+    const val enumSafeValueOfFun = "safeValueOf"
+    const val checkNotNullFun = "checkNotNull"
+    const val mapperObjectName = "Mapper"
 }
