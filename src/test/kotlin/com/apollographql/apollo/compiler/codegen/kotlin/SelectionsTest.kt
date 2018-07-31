@@ -21,7 +21,7 @@ import java.math.BigInteger
 
 class SelectionsTest {
     @Test
-    fun `emits response fields property`() {
+    fun `emits response fields`() {
         val spec = SelectionSetSpec(
                 fields = listOf(
                         ResponseFieldSpec(
@@ -94,7 +94,7 @@ class SelectionsTest {
     }
 
     @Test
-    fun `emits response field mapper property`() {
+    fun `emits response mapper`() {
         val spec = SelectionSetSpec(
                 fields = listOf(
                         ResponseFieldSpec(
@@ -153,7 +153,7 @@ class SelectionsTest {
     }
 
     @Test
-    fun `emits response field marshaller function`() {
+    fun `emits response marshaller`() {
         val spec = SelectionSetSpec(
                 fields = listOf(
                         ResponseFieldSpec(
@@ -184,18 +184,21 @@ class SelectionsTest {
                 )
         )
 
-        assertThat(spec.responseMarshallerFunSpec().wrapInFile().toString().dropImports().trim())
-                .isEqualTo("""
-                    override fun marshaller() = ResponseFieldMarshaller { _writer ->
-                        _writer.writeDouble("RESPONSE_FIELDS[0]", number)
-                        _writer.writeString("RESPONSE_FIELDS[1]", unit?.rawValue())
-                        _writer.writeObject("RESPONSE_FIELDS[2]", heroWithReview?.marshaller())
-                        _writer.writeList("RESPONSE_FIELDS[3]", ResponseWriter.ListWriter { _itemWriter ->
-                            list?.forEach { _itemWriter.writeString(it) }
-                        })
-                        _writer.writeCustom("RESPONSE_FIELDS[4]", CustomType.CUSTOM, custom)
+        assertThat(spec.responseMarshallerPropertySpec()
+                .wrapInFile().toString().dropImports().trim()
+        ).isEqualTo("""
+            internal val _marshaller: ResponseFieldMarshaller by lazy {
+                        ResponseFieldMarshaller { _writer ->
+                            _writer.writeDouble("RESPONSE_FIELDS[0]", number)
+                            _writer.writeString("RESPONSE_FIELDS[1]", unit?.rawValue())
+                            _writer.writeObject("RESPONSE_FIELDS[2]", heroWithReview?._marshaller)
+                            _writer.writeList("RESPONSE_FIELDS[3]", ResponseWriter.ListWriter { _itemWriter ->
+                                list?.forEach { _itemWriter.writeString(it) }
+                            })
+                            _writer.writeCustom("RESPONSE_FIELDS[4]", CustomType.CUSTOM, custom)
+                        }
                     }
-                """.trimIndent())
+        """.trimIndent())
     }
 
     private val heroRef = TypeRef(

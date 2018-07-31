@@ -3,6 +3,7 @@ package com.apollographql.apollo.compiler.codegen.kotlin
 import com.apollographql.apollo.api.Input
 import com.apollographql.apollo.api.InputFieldWriter
 import com.apollographql.apollo.api.ResponseFieldMapper
+import com.apollographql.apollo.api.ResponseFieldMarshaller
 import com.apollographql.apollo.api.ResponseReader
 import com.apollographql.apollo.api.ResponseWriter
 import com.apollographql.apollo.api.internal.Optional
@@ -20,6 +21,8 @@ object ClassNames {
     val RESPONSE_MAPPER = ResponseFieldMapper::class.asClassName()
     val RESPONSE_OBJECT_READER = ResponseReader.ObjectReader::class.asClassName()
     val RESPONSE_LIST_READER = ResponseReader.ListReader::class.asClassName()
+
+    val RESPONSE_MARSHALLER = ResponseFieldMarshaller::class.asClassName()
     val RESPONSE_LIST_WRITER = ResponseWriter.ListWriter::class.asClassName()
 
     val INPUT_FIELD_LIST_WRITER = InputFieldWriter.ListWriter::class.asClassName()

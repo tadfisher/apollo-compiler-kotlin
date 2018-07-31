@@ -209,7 +209,6 @@ fun TypeRef.writeValueCode(
         propertyName: String = varName,
         writerParam: String = Types.defaultWriterParam,
         itemWriterParam: String = Types.defaultItemWriterParam,
-        marshallerParam: String = Types.defaultMarshallerParam,
         listWriterType: ClassName
 ): CodeBlock {
     return when (kind) {
@@ -219,9 +218,9 @@ fun TypeRef.writeValueCode(
         TypeKind.DOUBLE,
         TypeKind.BOOLEAN -> writeScalarCode(varName, propertyName, writerParam)
         TypeKind.ENUM -> writeEnumCode(varName, propertyName, writerParam)
-        TypeKind.OBJECT -> writeObjectCode(varName, propertyName, writerParam, marshallerParam)
+        TypeKind.OBJECT -> writeObjectCode(varName, propertyName, writerParam)
         TypeKind.LIST ->
-            writeListCode(varName, propertyName, writerParam, itemWriterParam, marshallerParam, listWriterType)
+            writeListCode(varName, propertyName, writerParam, itemWriterParam, listWriterType)
         TypeKind.CUSTOM -> writeCustomCode(varName, propertyName, writerParam)
     }}
 
@@ -250,12 +249,11 @@ fun TypeRef.writeEnumCode(
 fun TypeRef.writeObjectCode(
         varName: String,
         propertyName: String,
-        writerParam: String,
-        marshallerParam: String
+        writerParam: String
 ): CodeBlock {
     val typeName = typeName()
     val valueCode = typeName.unwrapOptionalValue(propertyName) {
-        CodeBlock.of("%L.%L", it, marshallerParam)
+        CodeBlock.of("%L.%L", it, Selections.marshallerProperty)
     }
     return CodeBlock.of("%L.%L(%S, %L)", writerParam, kind.writeMethod, varName, valueCode)
 }
@@ -265,7 +263,6 @@ fun TypeRef.writeListCode(
         propertyName: String,
         writerParam: String,
         itemWriterParam: String,
-        marshallerParam: String,
         listWriterType: ClassName
 ): CodeBlock {
     val typeName = typeName()
@@ -273,7 +270,7 @@ fun TypeRef.writeListCode(
     val listParamType = if (kind == TypeKind.LIST) parameters.first() else this
     val listWriterCode = typeName.unwrapOptionalValue(propertyName) {
         CodeBlock.of("%L", listParamType.listWriter(unwrappedListValue, itemWriterParam,
-                marshallerParam, listWriterType))
+                listWriterType))
     }
     return CodeBlock.of("%L.%L(%S, %L)", writerParam, kind.writeMethod, varName, listWriterCode)
 }
@@ -281,7 +278,6 @@ fun TypeRef.writeListCode(
 fun TypeRef.listWriter(
         listParam: CodeBlock,
         itemWriterParam: String,
-        marshallerParam: String,
         listWriterType: ClassName
 ): CodeBlock {
     return CodeBlock.of("""
@@ -290,19 +286,18 @@ fun TypeRef.listWriter(
         %<}
     """.trimIndent(),
             listWriterType, itemWriterParam, listParam,
-            writeListItemCode(itemWriterParam, marshallerParam, listWriterType)
+            writeListItemCode(itemWriterParam, listWriterType)
     )
 }
 
 fun TypeRef.writeListItemCode(
         itemWriterParam: String,
-        marshallerParam: String,
         listWriterType: ClassName
 ): CodeBlock {
     fun writeList(): CodeBlock {
         val nestedListItemParamType = if (kind == TypeKind.LIST) parameters.first() else this
         val nestedListWriter = nestedListItemParamType.listWriter(CodeBlock.of("%L", "it"),
-                itemWriterParam, marshallerParam, listWriterType)
+                itemWriterParam, listWriterType)
         return if (isOptional) {
             CodeBlock.of("\n%>%L.%L(%L?.let { %L })\n%<", itemWriterParam, kind.writeMethod, "it",
                     nestedListWriter)
@@ -326,7 +321,7 @@ fun TypeRef.writeListItemCode(
     fun writeObject(): CodeBlock {
         val valueCode = if (isOptional) "it?" else "it"
         return CodeBlock.of(" %L.%L(%L.%L) ",
-                itemWriterParam, kind.writeMethod, valueCode, marshallerParam)
+                itemWriterParam, kind.writeMethod, valueCode, Selections.marshallerProperty)
     }
 
     return when (kind) {
@@ -359,14 +354,6 @@ fun TypeName.isOptional(expectedOptionalType: ClassName? = null): Boolean {
         return (rawType in setOf(APOLLO_OPTIONAL, GUAVA_OPTIONAL, JAVA_OPTIONAL, INPUT_OPTIONAL))
     } else {
         rawType == expectedOptionalType
-    }
-}
-
-fun TypeName.unwrapOptionalType(): TypeName {
-    return if (this is ParameterizedTypeName && isOptional()) {
-        typeArguments.first().asNonNullable()
-    } else {
-        this.asNonNullable()
     }
 }
 
@@ -430,7 +417,6 @@ object Types {
     const val defaultItemReaderParam = "_itemReader"
     const val defaultWriterParam = "_writer"
     const val defaultItemWriterParam = "_itemWriter"
-    const val defaultMarshallerParam = "marshaller()"
     const val enumSafeValueOfFun = "safeValueOf"
     const val checkNotNullFun = "checkNotNull"
     const val mapperObjectName = "Mapper"

@@ -77,7 +77,7 @@ class TypesTest {
         )
         val code = ref.writeInputFieldValueCode("varName")
         assertThat(code.toString().trim()).isEqualTo("""
-            _writer.writeObject("varName", varName.marshaller())
+            _writer.writeObject("varName", varName._marshaller)
         """.trimIndent())
     }
 
@@ -92,7 +92,7 @@ class TypesTest {
         val code = ref.writeInputFieldValueCode("varName")
         assertThat(code.toString().trim()).isEqualTo("""
             if (varName.defined) {
-                _writer.writeObject("varName", varName.value?.marshaller())
+                _writer.writeObject("varName", varName.value?._marshaller)
             }
         """.trimIndent())
     }
@@ -205,7 +205,7 @@ class TypesTest {
         val code = ref.writeInputFieldValueCode("varName")
         assertThat(code.toString().trim()).isEqualTo("""
             _writer.writeList("varName", ${ListWriter::class.qualifiedName} { _itemWriter ->
-                varName.forEach { _itemWriter.writeObject(it.marshaller()) }
+                varName.forEach { _itemWriter.writeObject(it._marshaller) }
             })
         """.trimIndent())
     }
@@ -227,7 +227,7 @@ class TypesTest {
         val code = ref.writeInputFieldValueCode("varName")
         assertThat(code.toString().trim()).isEqualTo("""
             _writer.writeList("varName", ${ListWriter::class.qualifiedName} { _itemWriter ->
-                varName.forEach { _itemWriter.writeObject(it?.marshaller()) }
+                varName.forEach { _itemWriter.writeObject(it?._marshaller) }
             })
         """.trimIndent())
     }

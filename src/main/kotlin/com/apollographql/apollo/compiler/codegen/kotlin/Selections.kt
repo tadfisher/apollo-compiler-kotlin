@@ -5,6 +5,7 @@ import com.apollographql.apollo.api.ResponseFieldMapper
 import com.apollographql.apollo.api.ResponseFieldMarshaller
 import com.apollographql.apollo.api.ResponseReader
 import com.apollographql.apollo.compiler.codegen.kotlin.ClassNames.RESPONSE_MAPPER
+import com.apollographql.apollo.compiler.codegen.kotlin.ClassNames.RESPONSE_MARSHALLER
 import com.apollographql.apollo.compiler.ir.SelectionSetSpec
 import com.squareup.kotlinpoet.ARRAY
 import com.squareup.kotlinpoet.CodeBlock
@@ -52,25 +53,26 @@ fun SelectionSetSpec.responseMapperPropertySpec(forType: TypeName): PropertySpec
             .build()
 }
 
-fun SelectionSetSpec.responseMarshallerFunSpec(): FunSpec {
+fun SelectionSetSpec.responseMarshallerPropertySpec(): PropertySpec {
     val code = fields.mapIndexed { i, field ->
         val varName = "${Selections.responseFieldsProperty}[$i]"
         field.type.writeResponseFieldValueCode(varName, field.responseName)
     }.join("\n")
 
-    return FunSpec.builder("marshaller")
-            .addModifiers(KModifier.OVERRIDE)
-            .addCode("""
-                return %T { %L ->
+    return PropertySpec.builder(
+            Selections.marshallerProperty, RESPONSE_MARSHALLER, KModifier.INTERNAL)
+            .delegate("""
+                lazy {
+                %>%T { %L ->
                 %>%L
                 %<}
-
-            """.trimIndent(),
-                    ResponseFieldMarshaller::class, Types.defaultWriterParam, code)
+                %<}
+            """.trimIndent(), RESPONSE_MARSHALLER, Types.defaultWriterParam, code)
             .build()
 }
 
 object Selections {
     const val responseFieldsProperty = "RESPONSE_FIELDS"
     const val mapperProperty = "MAPPER"
+    const val marshallerProperty = "_marshaller"
 }
