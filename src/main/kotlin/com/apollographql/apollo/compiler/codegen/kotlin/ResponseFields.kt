@@ -16,9 +16,23 @@ import com.apollographql.apollo.compiler.codegen.factoryMethod
 import com.apollographql.apollo.compiler.ir.ResponseFieldSpec
 import com.squareup.kotlinpoet.ClassName
 import com.squareup.kotlinpoet.CodeBlock
+import com.squareup.kotlinpoet.ParameterSpec
+import com.squareup.kotlinpoet.PropertySpec
+
+fun ResponseFieldSpec.constructorParameter(maybeOptional: Boolean): ParameterSpec {
+    val typeName = type.typeName(maybeOptional)
+            .let { if (!maybeOptional && type.isOptional) it.asNullable() else it }
+
+    return ParameterSpec.builder(responseName, typeName).build()
+}
+
+fun ResponseFieldSpec.propertySpec(): PropertySpec {
+    return PropertySpec.builder(responseName, type.typeName())
+            .initializer("%L", responseName)
+            .build()
+}
 
 fun ResponseFieldSpec.factoryCode(): CodeBlock {
-
     fun customTypeFactoryCode(): CodeBlock {
         return CodeBlock.of("%T.%L(%S, %S, %L, %L, %T, %L)",
                 ResponseField::class,

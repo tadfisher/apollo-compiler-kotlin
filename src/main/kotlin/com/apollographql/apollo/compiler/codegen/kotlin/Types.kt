@@ -374,7 +374,7 @@ fun TypeName.unwrapOptionalValue(
             if (checkIfPresent) {
                 transformation(CodeBlock.of("%L.takeIf { it.isPresent() }?.get()", varName))
             } else {
-                transformation(CodeBlock.of("%L.get()"))
+                transformation(CodeBlock.of("%L.get()", varName))
             }
         }
     } else {

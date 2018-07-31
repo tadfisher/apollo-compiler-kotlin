@@ -1,13 +1,11 @@
 package com.apollographql.apollo.compiler.codegen.kotlin
 
 import com.apollographql.apollo.api.ResponseField
-import com.apollographql.apollo.api.ResponseFieldMapper
-import com.apollographql.apollo.api.ResponseFieldMarshaller
-import com.apollographql.apollo.api.ResponseReader
 import com.apollographql.apollo.compiler.codegen.kotlin.ClassNames.RESPONSE_MAPPER
 import com.apollographql.apollo.compiler.codegen.kotlin.ClassNames.RESPONSE_MARSHALLER
 import com.apollographql.apollo.compiler.ir.SelectionSetSpec
 import com.squareup.kotlinpoet.ARRAY
+import com.squareup.kotlinpoet.ClassName
 import com.squareup.kotlinpoet.CodeBlock
 import com.squareup.kotlinpoet.FunSpec
 import com.squareup.kotlinpoet.KModifier
@@ -16,6 +14,52 @@ import com.squareup.kotlinpoet.PropertySpec
 import com.squareup.kotlinpoet.TypeName
 import com.squareup.kotlinpoet.TypeSpec
 import com.squareup.kotlinpoet.asClassName
+
+fun SelectionSetSpec.dataClassSpec(name: ClassName): TypeSpec {
+    val optionalTypes: List<ClassName?> = fields.map {
+        it.type.takeIf { it.isOptional }?.optionalType?.asClassName()
+    }
+    val hasOptionalTypes = optionalTypes.any { it != null }
+
+    val primaryConstructor = FunSpec.constructorBuilder()
+            .apply {
+                fields.forEach {
+                    addParameter(it.constructorParameter(maybeOptional = true))
+                }
+                if (hasOptionalTypes) {
+                    addModifiers(KModifier.INTERNAL)
+                }
+            }
+            .build()
+
+    val secondaryConstructor = if (hasOptionalTypes) {
+        val thisArgs = fields.mapIndexed { i, field ->
+            optionalTypes[i]
+                    ?.parameterizedBy(field.type.typeName(false))
+                    ?.wrapOptionalValue(CodeBlock.of("%L", field.responseName))
+                    ?: CodeBlock.of("%L", field.responseName)
+        }.toTypedArray()
+
+        FunSpec.constructorBuilder()
+                .apply { fields.forEach {
+                    addParameter(it.constructorParameter(maybeOptional = false))
+                } }
+                .callThisConstructor(*thisArgs)
+                .build()
+    } else null
+
+    return TypeSpec.classBuilder(name)
+            .addModifiers(KModifier.DATA)
+            .primaryConstructor(primaryConstructor)
+            .apply { secondaryConstructor?.let { addFunction(it) } }
+            .addProperties(fields.map { it.propertySpec() })
+            .addProperty(responseMarshallerPropertySpec())
+            .addType(TypeSpec.companionObjectBuilder()
+                    .addProperty(responseFieldsPropertySpec())
+                    .addProperty(responseMapperPropertySpec(name))
+                    .build())
+            .build()
+}
 
 fun SelectionSetSpec.responseFieldsPropertySpec(): PropertySpec {
     val initializerCode = fields.map { it.factoryCode() }

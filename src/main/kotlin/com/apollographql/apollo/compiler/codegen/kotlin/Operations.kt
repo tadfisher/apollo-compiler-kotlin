@@ -10,6 +10,7 @@ import com.apollographql.apollo.compiler.ast.OperationType.MUTATION
 import com.apollographql.apollo.compiler.ast.OperationType.QUERY
 import com.apollographql.apollo.compiler.ast.OperationType.SUBSCRIPTION
 import com.apollographql.apollo.compiler.codegen.kotlin.ClassNames.INPUT_OPTIONAL
+import com.apollographql.apollo.compiler.codegen.kotlin.ClassNames.OPERATION_DATA
 import com.apollographql.apollo.compiler.ir.OperationDataSpec
 import com.apollographql.apollo.compiler.ir.OperationSpec
 import com.apollographql.apollo.compiler.ir.OperationVariablesSpec
@@ -108,12 +109,12 @@ fun OperationVariablesSpec.typeSpec(className: ClassName): TypeSpec {
 }
 
 fun OperationDataSpec.typeSpec(): TypeSpec {
-    return TypeSpec.classBuilder("Data")
-            .addModifiers(KModifier.DATA)
-            .addSuperinterface(Operation.Data::class.asClassName())
-            .addType(TypeSpec.companionObjectBuilder()
-                    .addProperty(selections.responseFieldsPropertySpec())
+    return selections.dataClassSpec(ClassName("", "Data"))
+            .toBuilder()
+            .addSuperinterface(OPERATION_DATA)
+            .addFunction(FunSpec.builder("marshaller")
+                    .addModifiers(KModifier.OVERRIDE)
+                    .addCode("return %L", Selections.marshallerProperty)
                     .build())
             .build()
 }
-

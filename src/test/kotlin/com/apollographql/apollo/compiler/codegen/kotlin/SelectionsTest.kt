@@ -1,6 +1,7 @@
 package com.apollographql.apollo.compiler.codegen.kotlin
 
 import com.apollographql.apollo.api.ResponseField
+import com.apollographql.apollo.api.internal.Optional
 import com.apollographql.apollo.compiler.ast.EnumValue
 import com.apollographql.apollo.compiler.ast.IntValue
 import com.apollographql.apollo.compiler.ast.ObjectField
@@ -20,6 +21,123 @@ import org.junit.Test
 import java.math.BigInteger
 
 class SelectionsTest {
+
+    @Test
+    fun `emits data class`() {
+        val spec = SelectionSetSpec(
+                fields = listOf(
+                        ResponseFieldSpec(
+                                name = "number",
+                                type = floatRef,
+                                responseType = ResponseField.Type.DOUBLE
+                        ),
+                        ResponseFieldSpec(
+                                name = "string",
+                                type = stringRef.copy(isOptional = false),
+                                responseType = ResponseField.Type.STRING
+                        )
+                )
+        )
+
+        assertThat(spec.dataClassSpec(ClassName("", "Data"))
+                .wrapInFile().toString().trim().dropImports()
+        ).isEqualTo("""
+            data class Data(val number: Double?, val string: String) {
+                internal val _marshaller: ResponseFieldMarshaller by lazy {
+                            ResponseFieldMarshaller { _writer ->
+                                _writer.writeDouble("RESPONSE_FIELDS[0]", number)
+                                _writer.writeString("RESPONSE_FIELDS[1]", string)
+                            }
+                        }
+
+                companion object {
+                    @JvmField
+                    internal val RESPONSE_FIELDS: Array<ResponseField> = arrayOf(
+                                ResponseField.forDouble("number", "number", null, true, emptyList()),
+                                ResponseField.forString("string", "string", null, false, emptyList())
+                            )
+
+                    @JvmField
+                    val MAPPER: ResponseFieldMapper<Data> = ResponseFieldMapper<Data> { _reader ->
+                                val number: Double? = _reader.readDouble(RESPONSE_FIELDS[0])
+                                val string: String = Utils.checkNotNull(_reader.readString(RESPONSE_FIELDS[1]), "string == null")
+                                Data(number, string)
+                            }
+                }
+            }
+        """.trimIndent())
+    }
+
+    @Test
+    fun `emits data class with optionals`() {
+        val spec = SelectionSetSpec(
+                fields = listOf(
+                        ResponseFieldSpec(
+                                name = "number",
+                                type = floatRef.copy(
+                                        isOptional = false,
+                                        optionalType = Optional::class
+                                ),
+                                responseType = ResponseField.Type.DOUBLE
+                        ),
+                        ResponseFieldSpec(
+                                name = "optionalNumber",
+                                type = floatRef.copy(
+                                        isOptional = true,
+                                        optionalType = Optional::class
+                                ),
+                                responseType = ResponseField.Type.DOUBLE
+                        ),
+                        ResponseFieldSpec(
+                                name = "string",
+                                type = stringRef.copy(isOptional = false),
+                                responseType = ResponseField.Type.STRING
+                        )
+                )
+        )
+
+        assertThat(spec.dataClassSpec(ClassName("", "Data"))
+                .wrapInFile().toString().trim().dropImports()
+        ).isEqualTo("""
+            data class Data internal constructor(
+                val number: Double,
+                val optionalNumber: Optional<Double>,
+                val string: String
+            ) {
+                internal val _marshaller: ResponseFieldMarshaller by lazy {
+                            ResponseFieldMarshaller { _writer ->
+                                _writer.writeDouble("RESPONSE_FIELDS[0]", number)
+                                _writer.writeDouble("RESPONSE_FIELDS[1]", optionalNumber.get())
+                                _writer.writeString("RESPONSE_FIELDS[2]", string)
+                            }
+                        }
+
+                constructor(
+                    number: Double,
+                    optionalNumber: Double?,
+                    string: String
+                ) : this(number, Optional.fromNullable(optionalNumber), string)
+
+                companion object {
+                    @JvmField
+                    internal val RESPONSE_FIELDS: Array<ResponseField> = arrayOf(
+                                ResponseField.forDouble("number", "number", null, false, emptyList()),
+                                ResponseField.forDouble("optionalNumber", "optionalNumber", null, true, emptyList()),
+                                ResponseField.forString("string", "string", null, false, emptyList())
+                            )
+
+                    @JvmField
+                    val MAPPER: ResponseFieldMapper<Data> = ResponseFieldMapper<Data> { _reader ->
+                                val number: Double = Utils.checkNotNull(_reader.readDouble(RESPONSE_FIELDS[0]), "number == null")
+                                val optionalNumber: Double? = _reader.readDouble(RESPONSE_FIELDS[1])
+                                val string: String = Utils.checkNotNull(_reader.readString(RESPONSE_FIELDS[2]), "string == null")
+                                Data(number, optionalNumber, string)
+                            }
+                }
+            }
+        """.trimIndent())
+    }
+
     @Test
     fun `emits response fields`() {
         val spec = SelectionSetSpec(
