@@ -44,6 +44,7 @@ data class VariableSpec(
 data class ResponseFieldSpec(
         val name: String,
         val responseName: String = name,
+        val doc: String = "",
         val type: TypeRef,
         val responseType: ResponseField.Type,
         val arguments: List<ArgumentSpec> = emptyList(),

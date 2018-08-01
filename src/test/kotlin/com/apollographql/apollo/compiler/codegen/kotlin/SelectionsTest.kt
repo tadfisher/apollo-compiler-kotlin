@@ -7,8 +7,6 @@ import com.apollographql.apollo.compiler.ast.IntValue
 import com.apollographql.apollo.compiler.ast.ObjectField
 import com.apollographql.apollo.compiler.ast.ObjectValue
 import com.apollographql.apollo.compiler.ast.VariableValue
-import com.apollographql.apollo.compiler.codegen.dropImports
-import com.apollographql.apollo.compiler.codegen.wrapInFile
 import com.apollographql.apollo.compiler.ir.ArgumentSpec
 import com.apollographql.apollo.compiler.ir.ResponseFieldSpec
 import com.apollographql.apollo.compiler.ir.SelectionSetSpec
@@ -16,7 +14,6 @@ import com.apollographql.apollo.compiler.ir.TypeKind
 import com.apollographql.apollo.compiler.ir.TypeRef
 import com.google.common.truth.Truth.assertThat
 import com.squareup.kotlinpoet.ClassName
-import com.squareup.kotlinpoet.TypeName
 import org.junit.Test
 import java.math.BigInteger
 
@@ -28,20 +25,24 @@ class SelectionsTest {
                 fields = listOf(
                         ResponseFieldSpec(
                                 name = "number",
+                                doc = "A number.",
                                 type = floatRef,
                                 responseType = ResponseField.Type.DOUBLE
                         ),
                         ResponseFieldSpec(
                                 name = "string",
+                                doc = "A string.",
                                 type = stringRef.copy(isOptional = false),
                                 responseType = ResponseField.Type.STRING
                         )
                 )
         )
 
-        assertThat(spec.dataClassSpec(ClassName("", "Data"))
-                .wrapInFile().toString().trim().dropImports()
-        ).isEqualTo("""
+        assertThat(spec.dataClassSpec(ClassName("", "Data")).code()).isEqualTo("""
+            /**
+             * @param number A number.
+             * @param string A string.
+             */
             data class Data(val number: Double?, val string: String) {
                 internal val _marshaller: ResponseFieldMarshaller by lazy {
                             ResponseFieldMarshaller { _writer ->
@@ -96,9 +97,7 @@ class SelectionsTest {
                 )
         )
 
-        assertThat(spec.dataClassSpec(ClassName("", "Data"))
-                .wrapInFile().toString().trim().dropImports()
-        ).isEqualTo("""
+        assertThat(spec.dataClassSpec(ClassName("", "Data")).code()).isEqualTo("""
             data class Data internal constructor(
                 val number: Double,
                 val optionalNumber: Optional<Double>,
@@ -183,32 +182,31 @@ class SelectionsTest {
                                                                         type = unitRef
                                                                 ))))))))
 
-        assertThat(spec.responseFieldsPropertySpec().wrapInFile().toString().trim().dropImports())
-                .isEqualTo("""
-                    @JvmField
-                    internal val RESPONSE_FIELDS: Array<ResponseField> = arrayOf(
-                                ResponseField.forObject("heroWithReview", "heroWithReview", mapOf(
-                                    "episode" to mapOf(
+        assertThat(spec.responseFieldsPropertySpec().code()).isEqualTo("""
+            @JvmField
+            internal val RESPONSE_FIELDS: Array<ResponseField> = arrayOf(
+                        ResponseField.forObject("heroWithReview", "heroWithReview", mapOf(
+                            "episode" to mapOf(
+                                "kind" to "Variable",
+                                "variableName" to "episode"
+                            ),
+                            "review" to mapOf(
+                                "stars" to mapOf(
+                                    "kind" to "Variable",
+                                    "variableName" to "stars"
+                                ),
+                                "favoriteColor" to mapOf(
+                                    "red" to 0,
+                                    "green" to mapOf(
                                         "kind" to "Variable",
-                                        "variableName" to "episode"
+                                        "variableName" to "greenValue"
                                     ),
-                                    "review" to mapOf(
-                                        "stars" to mapOf(
-                                            "kind" to "Variable",
-                                            "variableName" to "stars"
-                                        ),
-                                        "favoriteColor" to mapOf(
-                                            "red" to 0,
-                                            "green" to mapOf(
-                                                "kind" to "Variable",
-                                                "variableName" to "greenValue"
-                                            ),
-                                            "blue" to 0
-                                        )
-                                    )
-                                ), true, emptyList())
+                                    "blue" to 0
+                                )
                             )
-                """.trimIndent())
+                        ), true, emptyList())
+                    )
+            """.trimIndent())
     }
 
     @Test
@@ -248,9 +246,7 @@ class SelectionsTest {
                 )
         )
 
-        assertThat(spec.responseMapperPropertySpec(ClassName("", "Data"))
-                .wrapInFile().toString().dropImports().trim()
-        ).isEqualTo("""
+        assertThat(spec.responseMapperPropertySpec(ClassName("", "Data")).code()).isEqualTo("""
             @JvmField
             val MAPPER: ResponseFieldMapper<Data> = ResponseFieldMapper<Data> { _reader ->
                         val number: Double? = _reader.readDouble(RESPONSE_FIELDS[0])
@@ -302,9 +298,7 @@ class SelectionsTest {
                 )
         )
 
-        assertThat(spec.responseMarshallerPropertySpec()
-                .wrapInFile().toString().dropImports().trim()
-        ).isEqualTo("""
+        assertThat(spec.responseMarshallerPropertySpec().code()).isEqualTo("""
             internal val _marshaller: ResponseFieldMarshaller by lazy {
                         ResponseFieldMarshaller { _writer ->
                             _writer.writeDouble("RESPONSE_FIELDS[0]", number)

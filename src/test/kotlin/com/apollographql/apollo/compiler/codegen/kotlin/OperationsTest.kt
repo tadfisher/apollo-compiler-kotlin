@@ -3,8 +3,6 @@ package com.apollographql.apollo.compiler.codegen.kotlin
 import com.apollographql.apollo.api.Input
 import com.apollographql.apollo.api.ScalarType
 import com.apollographql.apollo.compiler.ast.EnumValue
-import com.apollographql.apollo.compiler.codegen.dropImports
-import com.apollographql.apollo.compiler.codegen.kotlin.ClassNames.INPUT_OPTIONAL
 import com.apollographql.apollo.compiler.ir.OperationVariablesSpec
 import com.apollographql.apollo.compiler.ir.TypeKind
 import com.apollographql.apollo.compiler.ir.TypeRef
@@ -56,9 +54,7 @@ class OperationsTest {
                         defaultValue = null
                 )
         ))
-        val code = spec.typeSpec(ClassName("", "Variables"))
-        val fileSpec = FileSpec.get("", code)
-        assertThat(fileSpec.toString().dropImports().trim()).isEqualTo("""
+        assertThat(spec.typeSpec(ClassName("", "Variables")).code()).isEqualTo("""
             data class Variables(
                 val enum: Enum,
                 val int: Input<Int>,

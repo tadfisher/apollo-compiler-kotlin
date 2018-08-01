@@ -49,6 +49,16 @@ fun SelectionSetSpec.dataClassSpec(name: ClassName): TypeSpec {
     } else null
 
     return TypeSpec.classBuilder(name)
+            .apply {
+                if (fields.any { it.doc.isNotEmpty() }) {
+                    addKdoc(CodeBlock.builder()
+                            .add("%L", fields.mapNotNull { field ->
+                                field.doc.takeUnless { it.isEmpty() }
+                                        ?.let { CodeBlock.of("@param %L %L", field.name, it) }
+                            }.join("\n", suffix = "\n"))
+                            .build())
+                }
+            }
             .addModifiers(KModifier.DATA)
             .primaryConstructor(primaryConstructor)
             .apply { secondaryConstructor?.let { addFunction(it) } }
