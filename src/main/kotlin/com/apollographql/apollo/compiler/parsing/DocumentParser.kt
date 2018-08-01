@@ -1,11 +1,59 @@
 package com.apollographql.apollo.compiler.parsing
 
-import com.apollographql.apollo.compiler.ast.*
+import com.apollographql.apollo.compiler.ast.Argument
+import com.apollographql.apollo.compiler.ast.AstLocation
+import com.apollographql.apollo.compiler.ast.BooleanValue
+import com.apollographql.apollo.compiler.ast.Definition
+import com.apollographql.apollo.compiler.ast.Directive
+import com.apollographql.apollo.compiler.ast.DirectiveDefinition
+import com.apollographql.apollo.compiler.ast.DirectiveLocation
+import com.apollographql.apollo.compiler.ast.Document
+import com.apollographql.apollo.compiler.ast.EnumTypeDefinition
+import com.apollographql.apollo.compiler.ast.EnumTypeExtension
+import com.apollographql.apollo.compiler.ast.EnumValue
+import com.apollographql.apollo.compiler.ast.EnumValueDefinition
+import com.apollographql.apollo.compiler.ast.Field
+import com.apollographql.apollo.compiler.ast.FieldDefinition
+import com.apollographql.apollo.compiler.ast.FragmentDefinition
+import com.apollographql.apollo.compiler.ast.FragmentSpread
+import com.apollographql.apollo.compiler.ast.InlineFragment
+import com.apollographql.apollo.compiler.ast.InputObjectTypeDefinition
+import com.apollographql.apollo.compiler.ast.InputObjectTypeExtension
+import com.apollographql.apollo.compiler.ast.InputValueDefinition
+import com.apollographql.apollo.compiler.ast.InterfaceTypeDefinition
+import com.apollographql.apollo.compiler.ast.InterfaceTypeExtension
+import com.apollographql.apollo.compiler.ast.ListType
+import com.apollographql.apollo.compiler.ast.ListValue
+import com.apollographql.apollo.compiler.ast.NamedType
+import com.apollographql.apollo.compiler.ast.NonNullType
+import com.apollographql.apollo.compiler.ast.NullValue
+import com.apollographql.apollo.compiler.ast.ObjectField
+import com.apollographql.apollo.compiler.ast.ObjectTypeDefinition
+import com.apollographql.apollo.compiler.ast.ObjectTypeExtension
+import com.apollographql.apollo.compiler.ast.ObjectValue
+import com.apollographql.apollo.compiler.ast.OperationDefinition
+import com.apollographql.apollo.compiler.ast.OperationType
+import com.apollographql.apollo.compiler.ast.OperationTypeDefinition
+import com.apollographql.apollo.compiler.ast.ScalarTypeDefinition
+import com.apollographql.apollo.compiler.ast.ScalarTypeExtension
+import com.apollographql.apollo.compiler.ast.SchemaDefinition
+import com.apollographql.apollo.compiler.ast.SchemaExtension
+import com.apollographql.apollo.compiler.ast.Selection
+import com.apollographql.apollo.compiler.ast.Type
+import com.apollographql.apollo.compiler.ast.TypeDefinition
+import com.apollographql.apollo.compiler.ast.TypeExtension
+import com.apollographql.apollo.compiler.ast.TypeSystemDefinition
+import com.apollographql.apollo.compiler.ast.TypeSystemExtension
+import com.apollographql.apollo.compiler.ast.UnionTypeDefinition
+import com.apollographql.apollo.compiler.ast.UnionTypeExtension
+import com.apollographql.apollo.compiler.ast.Value
+import com.apollographql.apollo.compiler.ast.VariableDefinition
+import com.apollographql.apollo.compiler.ast.VariableValue
 import org.antlr.v4.runtime.CommonTokenStream
-import com.apollographql.apollo.compiler.ast.StringValue as StringValueAst
 import org.antlr.v4.runtime.ParserRuleContext
 import java.math.BigDecimal
 import java.math.BigInteger
+import com.apollographql.apollo.compiler.ast.StringValue as StringValueAst
 
 class DocumentParser(
         private val source: DocumentSource,

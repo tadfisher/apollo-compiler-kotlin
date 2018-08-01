@@ -2,12 +2,12 @@ package com.apollographql.apollo.compiler.ir
 
 import com.apollographql.apollo.compiler.ast.Document
 import com.apollographql.apollo.compiler.ast.FragmentDefinition
-import com.apollographql.apollo.compiler.ast.FragmentSpread as AstFragmentSpread
 import com.apollographql.apollo.compiler.ast.OperationDefinition
 import com.apollographql.apollo.compiler.ast.Selection
 import com.apollographql.apollo.compiler.ast.SelectionContainer
 import com.apollographql.apollo.compiler.ast.TypeDefinition
 import java.util.Stack
+import com.apollographql.apollo.compiler.ast.FragmentSpread as AstFragmentSpread
 
 class DocumentIrResolver(val document: Document) {
 

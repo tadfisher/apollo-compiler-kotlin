@@ -9,8 +9,11 @@ import com.apollographql.apollo.compiler.ast.OperationType
 import com.apollographql.apollo.compiler.ast.OperationType.MUTATION
 import com.apollographql.apollo.compiler.ast.OperationType.QUERY
 import com.apollographql.apollo.compiler.ast.OperationType.SUBSCRIPTION
-import com.apollographql.apollo.compiler.codegen.kotlin.ClassNames.INPUT_OPTIONAL
 import com.apollographql.apollo.compiler.codegen.kotlin.ClassNames.OPERATION_DATA
+import com.apollographql.apollo.compiler.codegen.kotlin.ClassNames.OPERATION_NAME
+import com.apollographql.apollo.compiler.codegen.kotlin.ClassNames.OPERATION_VARIABLES
+import com.apollographql.apollo.compiler.codegen.kotlin.ClassNames.RESPONSE_MAPPER
+import com.apollographql.apollo.compiler.codegen.kotlin.ClassNames.STRING
 import com.apollographql.apollo.compiler.ir.OperationDataSpec
 import com.apollographql.apollo.compiler.ir.OperationSpec
 import com.apollographql.apollo.compiler.ir.OperationVariablesSpec
@@ -27,27 +30,107 @@ import com.squareup.kotlinpoet.TypeSpec
 import com.squareup.kotlinpoet.asClassName
 import javax.annotation.Generated
 
-fun OperationSpec.typeSpec(packageName: String): TypeSpec {
-    val className = ClassName(packageName, name.capitalize())
+fun OperationSpec.typeSpec(): TypeSpec {
+    val className = ClassName("", name)
     val dataType = className.nestedClass("Data")
+    val optionalDataType = optionalType?.asClassName()?.parameterizedBy(dataType) ?: dataType
     val variablesType = if (variables != null) {
         className.nestedClass("Variables")
     } else {
-        Operation.Variables::class.asClassName()
+        OPERATION_VARIABLES
     }
 
-    return TypeSpec.classBuilder(className)
-            .addAnnotation(AnnotationSpec.builder(Generated::class)
-                    .addMember("%S", "Apollo GraphQL")
+    return with (TypeSpec.classBuilder(className)) {
+        addAnnotation(AnnotationSpec.builder(Generated::class)
+                .addMember("%S", "Apollo GraphQL")
+                .build())
+
+        addSuperinterface(operation.typeName(dataType, optionalDataType, variablesType))
+
+        addType(TypeSpec.companionObjectBuilder()
+                .addProperty(
+                        PropertySpec.builder(Operations.definitionProperty, STRING, KModifier.CONST)
+                                .initializer("%S", definition)
+                                .build())
+                .addProperty(PropertySpec.builder(Operations.idProperty, STRING, KModifier.CONST)
+                        .initializer("%S", id)
+                        .build())
+                .addProperty(
+                        PropertySpec.builder(
+                                Operations.queryDocumentProperty, STRING, KModifier.CONST)
+                                .initializer("%L", Operations.definitionProperty)
+                                .build())
+                .addProperty(
+                        PropertySpec.builder(Operations.operationNameProperty, OPERATION_NAME)
+                                .initializer(CodeBlock.of("%T { %S }", OPERATION_NAME, name))
+                                .build()
+                )
+                .build())
+
+        if (variables != null) {
+            primaryConstructor(FunSpec.constructorBuilder()
+                    .addModifiers(KModifier.INTERNAL)
+                    .addParameter(Operations.variablesProperty, variablesType)
                     .build())
-            .addSuperinterface(operation.typeName(dataType, dataType.asNullable(), variablesType))
-            .primaryConstructor(FunSpec.constructorBuilder()
-                    .addParameters(variables?.variables?.map {
-                        it.operationParameterSpec()
-                    } ?: emptyList())
+
+            addProperty(PropertySpec.builder(Operations.variablesProperty, variablesType)
+                    .addModifiers(KModifier.PRIVATE)
+                    .initializer(Operations.variablesProperty)
                     .build())
-            .apply { if (variables != null) addType(variables.typeSpec(variablesType)) }
-            .build()
+
+            addFunction(FunSpec.constructorBuilder()
+                    .addParameters(variables.variables.map { it.operationParameterSpec() })
+                    .callThisConstructor(CodeBlock.of("%T(%L)", variablesType,
+                            variables.variables.joinToString(",%W") { it.name }))
+                    .build())
+
+            addType(variables.typeSpec(variablesType))
+        }
+
+        addFunction(FunSpec.builder(Operations.nameFun)
+                .addModifiers(KModifier.OVERRIDE)
+                .addCode("return %L\n", Operations.operationNameProperty)
+                .build())
+
+        addFunction(FunSpec.builder(Operations.operationIdFun)
+                .addModifiers(KModifier.OVERRIDE)
+                .addCode("return %L\n", Operations.idProperty)
+                .build())
+
+        addFunction(FunSpec.builder(Operations.queryDocumentFun)
+                .addModifiers(KModifier.OVERRIDE)
+                .addCode("return %L\n", Operations.queryDocumentProperty)
+                .build())
+
+        addFunction(FunSpec.builder(Operations.wrapDataFun)
+                .addModifiers(KModifier.OVERRIDE)
+                .addParameter("data", dataType)
+                .returns(optionalDataType)
+                .addCode("return %L\n", optionalDataType.wrapOptionalValue("data"))
+                .build())
+
+        addFunction(FunSpec.builder(Operations.variablesFun)
+                .addModifiers(KModifier.OVERRIDE)
+                .returns(variablesType)
+                .addCode("return %L\n", if (variables != null) {
+                    Operations.variablesProperty
+                } else {
+                    CodeBlock.of("%T.%L", Operations::class, "EMPTY_VARIABLES")
+                })
+                .build())
+
+        addFunction(FunSpec.builder(Operations.responseFieldMapperFun)
+                .addModifiers(KModifier.OVERRIDE)
+                .returns(RESPONSE_MAPPER.parameterizedBy(dataType))
+                .addCode("return %T.%L\n", dataType, Selections.mapperProperty)
+                .build())
+
+        addType(data.typeSpec())
+
+        addTypes(data.selections.typeSpecs())
+
+        build()
+    }
 }
 
 fun OperationType.typeName(
@@ -80,13 +163,13 @@ fun OperationVariablesSpec.typeSpec(className: ClassName): TypeSpec {
 
     val valueMapFunSpec = FunSpec.builder("valueMap")
             .addModifiers(KModifier.OVERRIDE)
-            .addCode("return %L", valueMapPropertySpec.name)
+            .addCode("return %L\n", valueMapPropertySpec.name)
             .build()
 
     val marshallerLambdaCode = CodeBlock.of("%T { %L ->\n%>%L%<}",
             InputFieldMarshaller::class, Types.defaultWriterParam,
             CodeBlock.builder().add(
-                variables.map { it.type.writeInputFieldValueCode(it.name) }
+                variables.map { it.type.writeInputFieldValueCode(it.name, it.propertyName) }
                         .join("\n", suffix = "\n")
             ).build())
 
@@ -114,7 +197,21 @@ fun OperationDataSpec.typeSpec(): TypeSpec {
             .addSuperinterface(OPERATION_DATA)
             .addFunction(FunSpec.builder("marshaller")
                     .addModifiers(KModifier.OVERRIDE)
-                    .addCode("return %L", Selections.marshallerProperty)
+                    .addCode("return %L\n", Selections.marshallerProperty)
                     .build())
             .build()
+}
+
+object Operations {
+    const val definitionProperty = "OPERATION_DEFINITION"
+    const val idProperty = "OPERATION_ID"
+    const val queryDocumentProperty = "QUERY_DOCUMENT"
+    const val operationNameProperty = "OPERATION_NAME"
+    const val variablesProperty = "variables"
+    const val operationIdFun = "operationId"
+    const val queryDocumentFun = "queryDocument"
+    const val wrapDataFun = "wrapData"
+    const val variablesFun = "variables"
+    const val responseFieldMapperFun = "responseFieldMapper"
+    const val nameFun = "name"
 }

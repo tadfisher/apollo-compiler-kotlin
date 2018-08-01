@@ -255,7 +255,7 @@ class SelectionsTest {
                             Unit.safeValueOf(it)
                         }
                         val heroWithReview: HeroWithReview? = _reader.readObject(RESPONSE_FIELDS[3], ResponseReader.ObjectReader<HeroWithReview> {
-                            HeroWithReview.Mapper.map(it)
+                            HeroWithReview.MAPPER.map(it)
                         })
                         val list: List<String?>? = _reader.readList(RESPONSE_FIELDS[4], ResponseReader.ListReader<List<String?>> { _itemReader ->
                             _itemReader.readString()
@@ -312,51 +312,4 @@ class SelectionsTest {
                     }
         """.trimIndent())
     }
-
-    private val heroRef = TypeRef(
-            name = "HeroWithReview",
-            kind = TypeKind.OBJECT
-    )
-
-    private val episodeRef = TypeRef(
-            name = "Episode",
-            kind = TypeKind.ENUM
-    )
-
-    private val unitRef = TypeRef(
-            name = "Unit",
-            jvmName = Unit::class.qualifiedName!!,
-            kind = TypeKind.ENUM
-    )
-
-    private val stringRef = TypeRef(
-            name = "String",
-            jvmName = String::class.qualifiedName!!,
-            kind = TypeKind.STRING
-    )
-
-    private val floatRef = TypeRef(
-            name = "Float",
-            jvmName = Double::class.qualifiedName!!,
-            kind = TypeKind.DOUBLE
-    )
-
-    private val listRef = TypeRef(
-            name = "List",
-            jvmName = List::class.qualifiedName!!,
-            kind = TypeKind.LIST,
-            isOptional = true,
-            parameters = listOf(stringRef)
-    )
-
-    private val reviewRef = TypeRef(
-            name = "Review",
-            jvmName = "Review",
-            kind = TypeKind.OBJECT
-    )
-
-    private val customRef = TypeRef(
-            name = "CustomType.CUSTOM",
-            kind = TypeKind.CUSTOM
-    )
 }

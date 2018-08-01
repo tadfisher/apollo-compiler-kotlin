@@ -1,6 +1,13 @@
 package com.apollographql.apollo.compiler.introspection
 
-import com.apollographql.apollo.compiler.introspection.TypeKind.*
+import com.apollographql.apollo.compiler.introspection.TypeKind.ENUM
+import com.apollographql.apollo.compiler.introspection.TypeKind.INPUT_OBJECT
+import com.apollographql.apollo.compiler.introspection.TypeKind.INTERFACE
+import com.apollographql.apollo.compiler.introspection.TypeKind.LIST
+import com.apollographql.apollo.compiler.introspection.TypeKind.NON_NULL
+import com.apollographql.apollo.compiler.introspection.TypeKind.OBJECT
+import com.apollographql.apollo.compiler.introspection.TypeKind.SCALAR
+import com.apollographql.apollo.compiler.introspection.TypeKind.UNION
 import com.squareup.moshi.FromJson
 import com.squareup.moshi.JsonAdapter
 import com.squareup.moshi.JsonClass

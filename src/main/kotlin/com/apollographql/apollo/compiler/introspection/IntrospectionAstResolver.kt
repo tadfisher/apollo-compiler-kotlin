@@ -23,7 +23,6 @@ import com.apollographql.apollo.compiler.ast.StringValue
 import com.apollographql.apollo.compiler.ast.Type
 import com.apollographql.apollo.compiler.ast.TypeDefinition
 import com.apollographql.apollo.compiler.ast.UnionTypeDefinition
-import com.apollographql.apollo.compiler.parsing.parseGraphqlValue
 
 fun IntrospectionSchema.resolveDocument() = Document(
         definitions = listOf<Definition>(schemaDefinition())

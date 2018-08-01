@@ -105,7 +105,7 @@ fun TypeRef.readObjectCode(
         %>%T.%L.map(it)
         %<}
     """.trimIndent(),
-            RESPONSE_OBJECT_READER.parameterizedBy(typeName), typeName, Types.mapperObjectName)
+            RESPONSE_OBJECT_READER.parameterizedBy(typeName), typeName, Selections.mapperProperty)
 
     return CodeBlock.of("%L.%L(%L, %L)", readerParam, kind.readMethod, varName, readerLambda)
 }
@@ -141,8 +141,8 @@ fun TypeRef.readListItemStatement(itemReaderParam: String): CodeBlock {
             %T {
             %>%T.%L.map(it)
             %<}
-        """.trimIndent(),
-                RESPONSE_OBJECT_READER.parameterizedBy(typeName), typeName, Types.mapperObjectName)
+        """.trimIndent(), RESPONSE_OBJECT_READER.parameterizedBy(typeName), typeName,
+                Selections.mapperProperty)
 
         return CodeBlock.of("%L.%L(%L)", itemReaderParam, kind.readMethod, readerLambda)
     }
@@ -179,14 +179,17 @@ fun TypeRef.readCustomCode(varName: String, readerParam: String): CodeBlock {
             readerParam, kind.readMethod, varName, ResponseField.CustomTypeField::class)
 }
 
-fun TypeRef.writeInputFieldValueCode(varName: String): CodeBlock {
-    return writeValueCode(varName, listWriterType = INPUT_FIELD_LIST_WRITER).let {
+fun TypeRef.writeInputFieldValueCode(
+        varName: String,
+        propertyName: String = varName
+): CodeBlock {
+    return writeValueCode(varName, propertyName, listWriterType = INPUT_FIELD_LIST_WRITER).let {
         if (isOptional) {
             CodeBlock.of("""
                 if (%L.defined) {
                 %>%L
                 %<}
-            """.trimIndent(), varName, it)
+            """.trimIndent(), propertyName, it)
         } else {
             it
         }
@@ -395,6 +398,11 @@ fun TypeName.wrapOptionalValue(value: CodeBlock): CodeBlock {
     }
 }
 
+fun TypeName.wrapOptionalValue(value: String): CodeBlock {
+    return wrapOptionalValue(CodeBlock.of("%L", value))
+}
+
+
 fun TypeName.defaultOptionalValue(): CodeBlock {
     return if (isOptional() && this is ParameterizedTypeName) {
         CodeBlock.of("%T.absent", rawType)
@@ -419,5 +427,4 @@ object Types {
     const val defaultItemWriterParam = "_itemWriter"
     const val enumSafeValueOfFun = "safeValueOf"
     const val checkNotNullFun = "checkNotNull"
-    const val mapperObjectName = "Mapper"
 }

@@ -10,6 +10,8 @@ data class OperationSpec(
         val id: String,
         val name: String,
         val operation: OperationType,
+        val definition: String,
+        val optionalType: KClass<*>?,
         val data: OperationDataSpec,
         val variables: OperationVariablesSpec?
 )
@@ -34,16 +36,15 @@ data class OperationTypesSpec(
 
 data class VariableSpec(
         val name: String,
+        val propertyName: String = name.decapitalize(),
         val type: TypeRef,
-        val defaultValue: Value?
+        val defaultValue: Value? = null
 )
 
-/**
- * Resolved field; includes type and input values from the field definition.
- */
 data class ResponseFieldSpec(
         val name: String,
         val responseName: String = name,
+        val typeName: String = name.capitalize(),
         val doc: String = "",
         val type: TypeRef,
         val responseType: ResponseField.Type,

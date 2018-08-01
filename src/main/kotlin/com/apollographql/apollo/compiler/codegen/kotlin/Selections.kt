@@ -3,6 +3,7 @@ package com.apollographql.apollo.compiler.codegen.kotlin
 import com.apollographql.apollo.api.ResponseField
 import com.apollographql.apollo.compiler.codegen.kotlin.ClassNames.RESPONSE_MAPPER
 import com.apollographql.apollo.compiler.codegen.kotlin.ClassNames.RESPONSE_MARSHALLER
+import com.apollographql.apollo.compiler.ir.ResponseFieldSpec
 import com.apollographql.apollo.compiler.ir.SelectionSetSpec
 import com.squareup.kotlinpoet.ARRAY
 import com.squareup.kotlinpoet.ClassName
@@ -15,60 +16,83 @@ import com.squareup.kotlinpoet.TypeName
 import com.squareup.kotlinpoet.TypeSpec
 import com.squareup.kotlinpoet.asClassName
 
+fun SelectionSetSpec.typeSpecs(): List<TypeSpec> {
+    return fields.mapNotNull { it.selections?.dataClassSpec(ClassName("", it.typeName)) } +
+            fields.flatMap { it.selections?.typeSpecs() ?: emptyList() }
+}
+
 fun SelectionSetSpec.dataClassSpec(name: ClassName): TypeSpec {
+    fun defaultTypenameConstructor(
+            fields: List<ResponseFieldSpec>,
+            maybeOptional: Boolean
+    ): FunSpec {
+        val otherFields = fields.filterNot { it.name == Selections.typenameField }
+        return FunSpec.constructorBuilder()
+                .addKdoc(otherFields.kdoc())
+                .addParameters(otherFields.map { it.constructorParameter(maybeOptional) })
+                .callThisConstructor(CodeBlock.of("%L",
+                        fields.map {
+                            if (it.name == Selections.typenameField) {
+                                // TODO determine reasonable default __typename
+                                CodeBlock.of("%S", name.simpleName)
+                            } else {
+                                CodeBlock.of("%L", it.responseName)
+                            }
+                        }.join()))
+                .build()
+    }
+
+
     val optionalTypes: List<ClassName?> = fields.map {
         it.type.takeIf { it.isOptional }?.optionalType?.asClassName()
     }
     val hasOptionalTypes = optionalTypes.any { it != null }
+    val hasTypenameField = fields.any { it.name == Selections.typenameField }
 
-    val primaryConstructor = FunSpec.constructorBuilder()
-            .apply {
-                fields.forEach {
-                    addParameter(it.constructorParameter(maybeOptional = true))
-                }
-                if (hasOptionalTypes) {
-                    addModifiers(KModifier.INTERNAL)
-                }
-            }
-            .build()
+    return with (TypeSpec.classBuilder(name)) {
+        addModifiers(KModifier.DATA)
+        addProperties(fields.map { it.propertySpec() })
+        addProperty(responseMarshallerPropertySpec())
+        addType(TypeSpec.companionObjectBuilder()
+                .addProperty(responseFieldsPropertySpec())
+                .addProperty(responseMapperPropertySpec(name))
+                .build())
 
-    val secondaryConstructor = if (hasOptionalTypes) {
-        val thisArgs = fields.mapIndexed { i, field ->
-            optionalTypes[i]
-                    ?.parameterizedBy(field.type.typeName(false))
-                    ?.wrapOptionalValue(CodeBlock.of("%L", field.responseName))
-                    ?: CodeBlock.of("%L", field.responseName)
-        }.toTypedArray()
+        if (fields.any { it.doc.isNotEmpty() }) {
+            addKdoc(fields.kdoc())
+        }
 
-        FunSpec.constructorBuilder()
-                .apply { fields.forEach {
-                    addParameter(it.constructorParameter(maybeOptional = false))
-                } }
-                .callThisConstructor(*thisArgs)
-                .build()
-    } else null
-
-    return TypeSpec.classBuilder(name)
-            .apply {
-                if (fields.any { it.doc.isNotEmpty() }) {
-                    addKdoc(CodeBlock.builder()
-                            .add("%L", fields.mapNotNull { field ->
-                                field.doc.takeUnless { it.isEmpty() }
-                                        ?.let { CodeBlock.of("@param %L %L", field.name, it) }
-                            }.join("\n", suffix = "\n"))
-                            .build())
-                }
-            }
-            .addModifiers(KModifier.DATA)
-            .primaryConstructor(primaryConstructor)
-            .apply { secondaryConstructor?.let { addFunction(it) } }
-            .addProperties(fields.map { it.propertySpec() })
-            .addProperty(responseMarshallerPropertySpec())
-            .addType(TypeSpec.companionObjectBuilder()
-                    .addProperty(responseFieldsPropertySpec())
-                    .addProperty(responseMapperPropertySpec(name))
+        if (hasOptionalTypes) {
+            primaryConstructor(FunSpec.constructorBuilder()
+                    .addModifiers(KModifier.INTERNAL)
+                    .addParameters(fields.map { it.constructorParameter(maybeOptional = true) })
                     .build())
-            .build()
+
+            addFunction(with(FunSpec.constructorBuilder()) {
+                addParameters(fields.map { it.constructorParameter(maybeOptional = false) })
+
+                callThisConstructor(fields.mapIndexed { i, field ->
+                    optionalTypes[i]
+                            ?.parameterizedBy(field.type.typeName(false))
+                            ?.wrapOptionalValue(field.responseName)
+                            ?: CodeBlock.of("%L", field.responseName)
+                }.join())
+
+                build()
+            })
+        } else {
+            primaryConstructor(with (FunSpec.constructorBuilder()) {
+                addParameters(fields.map { it.constructorParameter(maybeOptional = true) })
+                build()
+            })
+        }
+
+        if (hasTypenameField) {
+            addFunction(defaultTypenameConstructor(fields, !hasOptionalTypes))
+        }
+
+        build()
+    }
 }
 
 fun SelectionSetSpec.responseFieldsPropertySpec(): PropertySpec {
@@ -129,4 +153,5 @@ object Selections {
     const val responseFieldsProperty = "RESPONSE_FIELDS"
     const val mapperProperty = "MAPPER"
     const val marshallerProperty = "_marshaller"
+    const val typenameField = "__typename"
 }
