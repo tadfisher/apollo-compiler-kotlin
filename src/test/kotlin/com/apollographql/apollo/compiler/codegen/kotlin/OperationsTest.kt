@@ -6,6 +6,7 @@ import com.apollographql.apollo.api.ScalarType
 import com.apollographql.apollo.api.internal.Optional
 import com.apollographql.apollo.compiler.ast.EnumValue
 import com.apollographql.apollo.compiler.ast.OperationType
+import com.apollographql.apollo.compiler.ast.VariableValue
 import com.apollographql.apollo.compiler.ir.OperationDataSpec
 import com.apollographql.apollo.compiler.ir.OperationSpec
 import com.apollographql.apollo.compiler.ir.OperationVariablesSpec
@@ -199,7 +200,8 @@ class OperationsTest {
                                                 name = "name",
                                                 doc = "Hero name.",
                                                 type = stringRef,
-                                                responseType = ResponseField.Type.STRING
+                                                responseType = ResponseField.Type.STRING,
+                                                includeIf = listOf(VariableValue("IncludeName"))
                                         )
                                 ))
                         )))),
@@ -315,7 +317,9 @@ class OperationsTest {
                         @JvmField
                         internal val RESPONSE_FIELDS: Array<ResponseField> = arrayOf(
                                     ResponseField.forString("__typename", "__typename", null, false, emptyList()),
-                                    ResponseField.forString("name", "name", null, true, emptyList())
+                                    ResponseField.forString("name", "name", null, true, listOf(
+                                        ResponseField.Condition.booleanCondition("IncludeName", false)
+                                    ))
                                 )
 
                         @JvmField

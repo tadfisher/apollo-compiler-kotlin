@@ -102,8 +102,8 @@ fun ResponseFieldSpec.conditionsCode(): CodeBlock {
     }
 
     val conditions = listOf(
-            skipIf.map { Pair(name, true) },
-            includeIf.map { Pair(name, false) }
+            skipIf.map { Pair(it.name, true) },
+            includeIf.map { Pair(it.name, false) }
     ).flatten()
 
     return CodeBlock.builder()
