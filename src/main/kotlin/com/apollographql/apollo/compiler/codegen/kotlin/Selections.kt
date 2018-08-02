@@ -29,7 +29,7 @@ fun SelectionSetSpec.dataClassSpec(name: ClassName): TypeSpec {
         val otherFields = fields.filterNot { it.name == Selections.typenameField }
         return FunSpec.constructorBuilder()
                 .addKdoc(otherFields.kdoc())
-                .addParameters(otherFields.map { it.constructorParameter(maybeOptional) })
+                .addParameters(otherFields.map { it.constructorParameterSpec(maybeOptional) })
                 .callThisConstructor(CodeBlock.of("%L",
                         fields.map {
                             if (it.name == Selections.typenameField) {
@@ -65,11 +65,11 @@ fun SelectionSetSpec.dataClassSpec(name: ClassName): TypeSpec {
         if (hasOptionalTypes) {
             primaryConstructor(FunSpec.constructorBuilder()
                     .addModifiers(KModifier.INTERNAL)
-                    .addParameters(fields.map { it.constructorParameter(maybeOptional = true) })
+                    .addParameters(fields.map { it.constructorParameterSpec(maybeOptional = true) })
                     .build())
 
             addFunction(with(FunSpec.constructorBuilder()) {
-                addParameters(fields.map { it.constructorParameter(maybeOptional = false) })
+                addParameters(fields.map { it.constructorParameterSpec(maybeOptional = false) })
 
                 callThisConstructor(fields.mapIndexed { i, field ->
                     optionalTypes[i]
@@ -82,7 +82,7 @@ fun SelectionSetSpec.dataClassSpec(name: ClassName): TypeSpec {
             })
         } else {
             primaryConstructor(with (FunSpec.constructorBuilder()) {
-                addParameters(fields.map { it.constructorParameter(maybeOptional = true) })
+                addParameters(fields.map { it.constructorParameterSpec(maybeOptional = true) })
                 build()
             })
         }

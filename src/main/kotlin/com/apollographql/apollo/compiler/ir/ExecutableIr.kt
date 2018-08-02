@@ -4,6 +4,8 @@ import com.apollographql.apollo.api.ResponseField
 import com.apollographql.apollo.compiler.ast.OperationType
 import com.apollographql.apollo.compiler.ast.Value
 import com.apollographql.apollo.compiler.ast.VariableValue
+import com.apollographql.apollo.compiler.util.lazyPlus
+import kotlin.coroutines.experimental.buildSequence
 import kotlin.reflect.KClass
 
 data class OperationSpec(
@@ -82,7 +84,23 @@ data class TypeRef(
         val isOptional: Boolean = true,
         val optionalType: KClass<*>? = null,
         val parameters: List<TypeRef> = emptyList()
-)
+) {
+    /**
+     * Returns a depth-first sequence of nested types.
+     */
+    fun nestedTypes(): Sequence<TypeRef> {
+        return sequenceOf(this) lazyPlus {
+            parameters.asSequence().flatMap { it.nestedTypes() }
+        }
+    }
+
+    /**
+     * True if this or any nested type reference refers to a custom type.
+     */
+    val isCustom: Boolean by lazy {
+        nestedTypes().any { it.kind == TypeKind.CUSTOM }
+    }
+}
 
 enum class TypeKind(val readMethod: String, val writeMethod: String) {
     STRING("readString", "writeString"),

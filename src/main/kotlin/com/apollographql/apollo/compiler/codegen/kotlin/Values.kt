@@ -36,23 +36,13 @@ fun ScalarValue.valueCode(): CodeBlock {
 fun EnumValue.valueCode() = CodeBlock.of("%L", value)
 
 fun ListValue.valueCode(): CodeBlock {
-    return CodeBlock.builder()
-            .add("listOf(\n")
-            .indent()
-            .apply {
-                value.dropLast(1).forEach { addStatement("%L,\n", it.valueCode()) }
-                value.lastOrNull()?.let { addStatement("%L\n", it.valueCode() )}
-            }
-            .unindent()
-            .add(")\n")
-            .build()
+    return CodeBlock.of("""
+        listOf(
+        %>%L
+        %<)
+    """.trimIndent(), value.map { CodeBlock.of("%L", it.valueCode()) }.join(",\n"))
 }
 
-fun ObjectValue.valueCode(): CodeBlock {
-    return CodeBlock.builder()
-            .apply {
-                fields.dropLast(1).forEach { add("%L = %L, ", it.name, it.value.valueCode()) }
-                fields.lastOrNull()?.let { add("%L = %L", it.name, it.value.valueCode())}
-            }
-            .build()
-}
+fun ObjectValue.valueCode() = CodeBlock.of("%L", fields.map {
+    CodeBlock.of("%L = %L", it.name, it.value.valueCode() )
+}.join("\n"))

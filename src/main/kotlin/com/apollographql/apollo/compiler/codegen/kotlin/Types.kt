@@ -41,13 +41,13 @@ fun TypeRef.typeName(maybeOptional: Boolean = true): TypeName {
 
 fun TypeRef.initializerCode(initialValue: Value): CodeBlock {
     val valueCode = when (initialValue) {
-        is EnumValue -> CodeBlock.of("%T.%L", typeName().asNonNullable(), initialValue.valueCode())
+        is EnumValue -> CodeBlock.of("%T.%L", typeName(false), initialValue.valueCode())
         is ObjectValue ->
-            CodeBlock.of("%[%T(%L)%]", typeName().asNonNullable(), initialValue.valueCode())
+            CodeBlock.of("%T(%L)", typeName(false), initialValue.valueCode())
         else -> initialValue.valueCode()
     }
     return if (isOptional && optionalType != null) {
-        optionalType.asClassName().wrapOptionalValue(valueCode)
+        typeName(true).wrapOptionalValue(valueCode)
     } else {
         valueCode
     }
@@ -406,6 +406,8 @@ fun TypeName.wrapOptionalValue(value: String): CodeBlock {
 fun TypeName.defaultOptionalValue(): CodeBlock {
     return if (isOptional() && this is ParameterizedTypeName) {
         CodeBlock.of("%T.absent", rawType)
+    } else if (nullable) {
+        CodeBlock.of("%L", "null")
     } else {
         CodeBlock.of("")
     }

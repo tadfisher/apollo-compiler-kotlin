@@ -19,7 +19,7 @@ import com.squareup.kotlinpoet.CodeBlock
 import com.squareup.kotlinpoet.ParameterSpec
 import com.squareup.kotlinpoet.PropertySpec
 
-fun ResponseFieldSpec.constructorParameter(maybeOptional: Boolean): ParameterSpec {
+fun ResponseFieldSpec.constructorParameterSpec(maybeOptional: Boolean): ParameterSpec {
     val typeName = type.typeName(maybeOptional)
             .let { if (!maybeOptional && type.isOptional) it.asNullable() else it }
 

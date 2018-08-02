@@ -34,6 +34,12 @@ val unitRef = TypeRef(
         kind = TypeKind.ENUM
 )
 
+val intRef = TypeRef(
+        name = "Int",
+        jvmName = Int::class.qualifiedName!!,
+        kind = TypeKind.INT
+)
+
 val booleanRef = TypeRef(
         name = "Boolean",
         jvmName = Boolean::class.qualifiedName!!,
@@ -67,10 +73,19 @@ val idRef = TypeRef(
         isOptional = true
 )
 
+val colorInputRef = TypeRef(
+        name = "ColorInput",
+        kind = TypeKind.OBJECT
+)
+
 val reviewRef = TypeRef(
         name = "Review",
-        jvmName = "Review",
         kind = TypeKind.OBJECT
+)
+
+val dateRef = TypeRef(
+        name = "CustomType.DATE",
+        kind = TypeKind.CUSTOM
 )
 
 val customRef = TypeRef(

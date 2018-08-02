@@ -1,6 +1,7 @@
 package com.apollographql.apollo.compiler.codegen.kotlin
 
 import com.apollographql.apollo.api.Input
+import com.apollographql.apollo.api.InputFieldMarshaller
 import com.apollographql.apollo.api.InputFieldWriter
 import com.apollographql.apollo.api.Operation
 import com.apollographql.apollo.api.OperationName
@@ -33,6 +34,7 @@ object ClassNames {
     val RESPONSE_MARSHALLER = ResponseFieldMarshaller::class.asClassName()
     val RESPONSE_LIST_WRITER = ResponseWriter.ListWriter::class.asClassName()
 
+    val INPUT_FIELD_MARSHALLER = InputFieldMarshaller::class.asClassName()
     val INPUT_FIELD_LIST_WRITER = InputFieldWriter.ListWriter::class.asClassName()
 
     val APOLLO_UTILS = Utils::class.asClassName()

@@ -168,10 +168,8 @@ fun OperationVariablesSpec.typeSpec(className: ClassName): TypeSpec {
 
     val marshallerLambdaCode = CodeBlock.of("%T { %L ->\n%>%L%<}",
             InputFieldMarshaller::class, Types.defaultWriterParam,
-            CodeBlock.builder().add(
                 variables.map { it.type.writeInputFieldValueCode(it.name, it.propertyName) }
-                        .join("\n", suffix = "\n")
-            ).build())
+                        .join("\n", suffix = "\n"))
 
     val marshallerFunSpec = FunSpec.builder("marshaller")
             .addModifiers(KModifier.OVERRIDE)
