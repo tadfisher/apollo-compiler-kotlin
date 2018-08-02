@@ -3,11 +3,11 @@ package com.apollographql.apollo.compiler.ir
 import com.apollographql.apollo.compiler.ast.Value
 import java.util.Locale
 
-sealed class TypeDefinitionSpec : WithDoc
+sealed class TypeDefinitionSpec
 
 data class InputObjectTypeSpec(
         val name: String,
-        override val doc: String = "",
+        val doc: String = "",
         val values: List<InputValueSpec>
 ) : TypeDefinitionSpec()
 
@@ -21,7 +21,7 @@ data class InputValueSpec(
 
 data class EnumTypeSpec(
         val name: String,
-        override val doc: String = "",
+        val doc: String = "",
         val values: List<EnumValueSpec>
 ) : TypeDefinitionSpec() {
     companion object {
@@ -41,8 +41,11 @@ data class EnumValueSpec(
     val isDeprecated: Boolean get() = deprecationReason != null
 }
 
+data class CustomTypesSpec(
+        val types: List<ScalarTypeSpec>
+)
+
 data class ScalarTypeSpec(
         val name: String,
-        override val doc: String = "",
         val type: TypeRef
 ) : TypeDefinitionSpec()

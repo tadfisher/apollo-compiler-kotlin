@@ -1,24 +1,28 @@
 package com.apollographql.apollo.compiler.codegen.kotlin
 
+import com.apollographql.apollo.api.ScalarType
+import com.apollographql.apollo.compiler.codegen.kotlin.ClassNames.CLASS
 import com.apollographql.apollo.compiler.codegen.kotlin.ClassNames.INPUT_FIELD_MARSHALLER
 import com.apollographql.apollo.compiler.codegen.kotlin.ClassNames.STRING
+import com.apollographql.apollo.compiler.ir.CustomTypesSpec
 import com.apollographql.apollo.compiler.ir.EnumTypeSpec
 import com.apollographql.apollo.compiler.ir.EnumTypeSpec.Companion.unknownValue
 import com.apollographql.apollo.compiler.ir.EnumValueSpec
 import com.apollographql.apollo.compiler.ir.InputObjectTypeSpec
 import com.apollographql.apollo.compiler.ir.InputValueSpec
+import com.apollographql.apollo.compiler.ir.ScalarTypeSpec
 import com.squareup.kotlinpoet.AnnotationSpec
 import com.squareup.kotlinpoet.ClassName
 import com.squareup.kotlinpoet.CodeBlock
 import com.squareup.kotlinpoet.FunSpec
 import com.squareup.kotlinpoet.KModifier
+import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import com.squareup.kotlinpoet.ParameterSpec
 import com.squareup.kotlinpoet.PropertySpec
 import com.squareup.kotlinpoet.TypeSpec
-import javax.annotation.Generated
+import com.squareup.kotlinpoet.WildcardTypeName
 
 fun InputObjectTypeSpec.typeSpec(className: ClassName): TypeSpec {
-
     val marshallerPropertySpec =
             PropertySpec.builder(Selections.marshallerProperty, INPUT_FIELD_MARSHALLER)
                     .addModifiers(KModifier.INTERNAL)
@@ -38,6 +42,7 @@ fun InputObjectTypeSpec.typeSpec(className: ClassName): TypeSpec {
                     .build()
 
     return TypeSpec.classBuilder(className)
+            .addGeneratedAnnotation()
             .addKdoc(values.parameterKdoc())
             .addModifiers(KModifier.DATA)
             .primaryConstructor(FunSpec.constructorBuilder()
@@ -80,9 +85,7 @@ fun EnumTypeSpec.typeSpec(className: ClassName): TypeSpec {
             addKdoc("%L\n", doc)
         }
 
-        addAnnotation(AnnotationSpec.builder(Generated::class)
-                .addMember("%S", "Apollo GraphQL")
-                .build())
+        addGeneratedAnnotation()
 
         for (value in values) {
             addEnumConstant(value.propertyName, value.enumConstantSpec())
@@ -116,7 +119,37 @@ fun EnumValueSpec.enumConstantSpec(): TypeSpec {
     }
 }
 
+fun CustomTypesSpec.typeSpec(): TypeSpec {
+    return with (TypeSpec.enumBuilder(InputTypes.customTypesEnum)) {
+        addGeneratedAnnotation()
+
+        addSuperinterface(ScalarType::class)
+
+        for (type in types) {
+            addEnumConstant(type.name, type.enumConstantSpec())
+        }
+
+        build()
+    }
+}
+
+fun ScalarTypeSpec.enumConstantSpec(): TypeSpec {
+    return TypeSpec.anonymousClassBuilder()
+            .addFunction(FunSpec.builder("typeName")
+                    .addModifiers(KModifier.OVERRIDE)
+                    .returns(STRING)
+                    .addCode("return %S\n", type.name)
+                    .build())
+            .addFunction(FunSpec.builder("javaType")
+                    .addModifiers(KModifier.OVERRIDE)
+                    .returns(CLASS.parameterizedBy(WildcardTypeName.STAR))
+                    .addCode("return %T::class.java\n", type.typeName(false))
+                    .build())
+            .build()
+}
+
 object InputTypes {
     const val enumRawValueProp = "rawValue"
     const val enumSafeValueOfFun = "safeValueOf"
+    const val customTypesEnum = "CustomType"
 }

@@ -1,8 +1,17 @@
 package com.apollographql.apollo.compiler.codegen.kotlin
 
 import com.apollographql.apollo.compiler.ir.PropertyWithDoc
-import com.apollographql.apollo.compiler.ir.WithDoc
+import com.squareup.kotlinpoet.AnnotationSpec
 import com.squareup.kotlinpoet.CodeBlock
+import com.squareup.kotlinpoet.TypeSpec
+import javax.annotation.Generated
+
+fun TypeSpec.Builder.addGeneratedAnnotation(): TypeSpec.Builder {
+    return addAnnotation(AnnotationSpec.builder(Generated::class)
+            .addMember("%S", "Apollo GraphQL")
+            .build())
+}
+
 
 fun List<CodeBlock>.join(
         separator: String = ",%W",

@@ -41,9 +41,7 @@ fun OperationSpec.typeSpec(): TypeSpec {
     }
 
     return with (TypeSpec.classBuilder(className)) {
-        addAnnotation(AnnotationSpec.builder(Generated::class)
-                .addMember("%S", "Apollo GraphQL")
-                .build())
+        addGeneratedAnnotation()
 
         addSuperinterface(operation.typeName(dataType, optionalDataType, variablesType))
 

@@ -1,19 +1,28 @@
 package com.apollographql.apollo.compiler.codegen.kotlin
 
 import com.apollographql.apollo.api.Input
+import com.apollographql.apollo.api.ScalarType
 import com.apollographql.apollo.compiler.ast.BooleanValue
 import com.apollographql.apollo.compiler.ast.EnumValue
 import com.apollographql.apollo.compiler.ast.IntValue
 import com.apollographql.apollo.compiler.ast.ListValue
 import com.apollographql.apollo.compiler.ast.StringValue
+import com.apollographql.apollo.compiler.ir.Builtins
+import com.apollographql.apollo.compiler.ir.CustomTypesSpec
 import com.apollographql.apollo.compiler.ir.EnumTypeSpec
 import com.apollographql.apollo.compiler.ir.EnumValueSpec
 import com.apollographql.apollo.compiler.ir.InputObjectTypeSpec
 import com.apollographql.apollo.compiler.ir.InputValueSpec
+import com.apollographql.apollo.compiler.ir.ScalarTypeSpec
+import com.apollographql.apollo.compiler.ir.TypeKind
+import com.apollographql.apollo.compiler.ir.TypeRef
 import com.google.common.truth.Truth.assertThat
 import com.squareup.kotlinpoet.ClassName
+import com.squareup.kotlinpoet.TypeSpec
 import org.junit.Test
 import java.math.BigInteger
+import java.net.URI
+import java.util.Date
 
 class InputTypesTest {
 
@@ -176,6 +185,7 @@ class InputTypesTest {
              * @param listOfListOfCustom for test purposes only
              * @param listOfListOfObject for test purposes only
              */
+            @Generated("Apollo GraphQL")
             data class ReviewInput(
                 val stars: Int,
                 val nullableIntFieldWithDefaultValue: Input<Int> = Input.fromNullable(10),
@@ -337,6 +347,47 @@ class InputTypesTest {
 
                 companion object {
                     fun safeValueOf(rawValue: String) = Episode.values().find { it.rawValue == rawValue } ?: Episode._UNKNOWN
+                }
+            }
+        """.trimIndent())
+    }
+
+    @Test
+    fun `emits custom types enum`() {
+        val spec = CustomTypesSpec(listOf(
+                Builtins.idTypeSpec,
+                ScalarTypeSpec("DATE", type = TypeRef(
+                        name = "Date",
+                        jvmName = Date::class.java.canonicalName,
+                        kind = TypeKind.CUSTOM,
+                        isOptional = false
+                )),
+                ScalarTypeSpec("URL", type = TypeRef(
+                        name = "URL",
+                        jvmName = URI::class.java.canonicalName,
+                        kind = TypeKind.CUSTOM,
+                        isOptional = false
+                ))
+        ))
+        assertThat(spec.typeSpec().code()).isEqualTo("""
+            @Generated("Apollo GraphQL")
+            enum class CustomType : ScalarType {
+                ID {
+                    override fun typeName(): String = "String"
+
+                    override fun javaType(): Class<*> = java.lang.String::class.java
+                },
+
+                DATE {
+                    override fun typeName(): String = "Date"
+
+                    override fun javaType(): Class<*> = Date::class.java
+                },
+
+                URL {
+                    override fun typeName(): String = "URL"
+
+                    override fun javaType(): Class<*> = URI::class.java
                 }
             }
         """.trimIndent())

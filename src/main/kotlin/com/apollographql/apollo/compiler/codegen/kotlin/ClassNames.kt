@@ -22,6 +22,7 @@ object ClassNames {
 
     val STRING = String::class.asClassName()
     val LIST = List::class.asClassName()
+    val CLASS = Class::class.asClassName()
 
     val OPERATION_DATA = Operation.Data::class.asClassName()
     val OPERATION_VARIABLES = Operation.Variables::class.asClassName()
