@@ -6,6 +6,8 @@ import com.apollographql.apollo.compiler.ast.EnumValue
 import com.apollographql.apollo.compiler.ast.IntValue
 import com.apollographql.apollo.compiler.ast.ListValue
 import com.apollographql.apollo.compiler.ast.StringValue
+import com.apollographql.apollo.compiler.ir.EnumTypeSpec
+import com.apollographql.apollo.compiler.ir.EnumValueSpec
 import com.apollographql.apollo.compiler.ir.InputObjectTypeSpec
 import com.apollographql.apollo.compiler.ir.InputValueSpec
 import com.google.common.truth.Truth.assertThat
@@ -13,7 +15,7 @@ import com.squareup.kotlinpoet.ClassName
 import org.junit.Test
 import java.math.BigInteger
 
-class InputObjectsTest {
+class InputTypesTest {
 
     @Test
     fun `emits input object type`() {
@@ -281,6 +283,61 @@ class InputObjectsTest {
                                 }
                             }
                         }
+            }
+        """.trimIndent())
+    }
+
+    @Test
+    fun `emits enum type`() {
+        val spec = EnumTypeSpec(
+                name = "Episode",
+                doc = "The episodes in the Star Wars trilogy.",
+                values = listOf(
+                        EnumValueSpec(
+                                name = "NEWHOPE",
+                                doc = "Star Wars Episode IV: A New Hope, released in 1977."
+                        ),
+                        EnumValueSpec(
+                                name = "EMPIRE",
+                                doc = "Star Wars Episode V: The Empire Strikes Back, released in 1980."
+                        ),
+                        EnumValueSpec(
+                                name = "jedi",
+                                propertyName = "JEDI",
+                                doc = "Star Wars Episode VI: Return of the Jedi, released in 1983."
+                        )
+                )
+        )
+
+        assertThat(spec.typeSpec(ClassName("", spec.name)).code()).isEqualTo("""
+            /**
+             * The episodes in the Star Wars trilogy.
+             */
+            @Generated("Apollo GraphQL")
+            enum class Episode(val rawValue: String) {
+                /**
+                 * Star Wars Episode IV: A New Hope, released in 1977.
+                 */
+                NEWHOPE("NEWHOPE"),
+
+                /**
+                 * Star Wars Episode V: The Empire Strikes Back, released in 1980.
+                 */
+                EMPIRE("EMPIRE"),
+
+                /**
+                 * Star Wars Episode VI: Return of the Jedi, released in 1983.
+                 */
+                JEDI("jedi"),
+
+                /**
+                 * Auto-generated constant for unknown enum values.
+                 */
+                _UNKNOWN("_UNKNOWN");
+
+                companion object {
+                    fun safeValueOf(rawValue: String) = Episode.values().find { it.rawValue == rawValue } ?: Episode._UNKNOWN
+                }
             }
         """.trimIndent())
     }

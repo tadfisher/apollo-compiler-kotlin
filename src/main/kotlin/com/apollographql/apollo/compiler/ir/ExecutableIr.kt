@@ -47,7 +47,7 @@ data class ResponseFieldSpec(
         val name: String,
         val responseName: String = name,
         val typeName: String = name.capitalize(),
-        val doc: String = "",
+        override val doc: String = "",
         val type: TypeRef,
         val responseType: ResponseField.Type,
         val arguments: List<ArgumentSpec> = emptyList(),
@@ -55,7 +55,9 @@ data class ResponseFieldSpec(
         val includeIf: List<VariableValue> = emptyList(),
         val typeConditions: List<TypeRef> = emptyList(),
         val selections: SelectionSetSpec? = null
-)
+) : PropertyWithDoc {
+    override val propertyName: String = responseName
+}
 
 data class FragmentSpreadSpec(
         val fragmentName: String,
