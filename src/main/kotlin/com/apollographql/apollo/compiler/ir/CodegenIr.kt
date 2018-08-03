@@ -163,3 +163,11 @@ data class ScalarTypeSpec(
         val name: String,
         val type: TypeRef
 ) : TypeDefinitionSpec()
+
+data class FragmentSpec(
+        val name: String,
+        val source: String,
+        val selections: SelectionSetSpec,
+        val typeCondition: TypeRef? = null,
+        val possibleTypes: List<String> = emptyList()
+)
