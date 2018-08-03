@@ -1,19 +1,8 @@
 package com.apollographql.apollo.compiler.codegen.kotlin
 
 import com.apollographql.apollo.api.ResponseField
-import com.apollographql.apollo.api.ResponseField.Type.BOOLEAN
-import com.apollographql.apollo.api.ResponseField.Type.CUSTOM
-import com.apollographql.apollo.api.ResponseField.Type.DOUBLE
-import com.apollographql.apollo.api.ResponseField.Type.ENUM
-import com.apollographql.apollo.api.ResponseField.Type.FRAGMENT
-import com.apollographql.apollo.api.ResponseField.Type.INLINE_FRAGMENT
-import com.apollographql.apollo.api.ResponseField.Type.INT
-import com.apollographql.apollo.api.ResponseField.Type.LIST
-import com.apollographql.apollo.api.ResponseField.Type.LONG
-import com.apollographql.apollo.api.ResponseField.Type.OBJECT
-import com.apollographql.apollo.api.ResponseField.Type.STRING
-import com.apollographql.apollo.compiler.codegen.factoryMethod
 import com.apollographql.apollo.compiler.ir.ResponseFieldSpec
+import com.apollographql.apollo.compiler.ir.TypeKind
 import com.squareup.kotlinpoet.ClassName
 import com.squareup.kotlinpoet.CodeBlock
 import com.squareup.kotlinpoet.ParameterSpec
@@ -36,7 +25,7 @@ fun ResponseFieldSpec.factoryCode(): CodeBlock {
     fun customTypeFactoryCode(): CodeBlock {
         return CodeBlock.of("%T.%L(%S, %S, %L, %L, %T, %L)",
                 ResponseField::class,
-                responseType.factoryMethod,
+                type.kind.factoryMethod,
                 responseName, name,
                 argumentsCode(),
                 type.isOptional,
@@ -46,18 +35,17 @@ fun ResponseFieldSpec.factoryCode(): CodeBlock {
 
     fun fragmentFactoryCode(): CodeBlock {
         val conditions = typeConditions.takeIf { it.isNotEmpty() }
-                ?.map { CodeBlock.of("%S", it.name )}
-                ?.join(",\n", prefix = "listOf(\n%>", suffix = "\n%<)")
+                ?.joinToCodeBlock { CodeBlock.of("%S", it.name) }
                 ?: CodeBlock.of("emptyList()")
 
-        return CodeBlock.of("%T.%L(%S, %S, %L", ResponseField::class, responseType.factoryMethod,
+        return CodeBlock.of("%T.%L(%S, %S, %L)", ResponseField::class, type.kind.factoryMethod,
                 responseName, name, conditions)
     }
 
     fun genericFactoryCode(): CodeBlock {
         return CodeBlock.of("%T.%L(%S, %S, %L, %L, %L)",
                 ResponseField::class,
-                responseType.factoryMethod,
+                type.kind.factoryMethod,
                 responseName,
                 name,
                 argumentsCode(),
@@ -65,18 +53,18 @@ fun ResponseFieldSpec.factoryCode(): CodeBlock {
                 conditionsCode())
     }
 
-    return when (responseType) {
-        STRING,
-        INT,
-        LONG,
-        DOUBLE,
-        BOOLEAN,
-        ENUM,
-        OBJECT,
-        LIST -> genericFactoryCode()
-        CUSTOM -> customTypeFactoryCode()
-        FRAGMENT,
-        INLINE_FRAGMENT -> fragmentFactoryCode()
+    return when (type.kind) {
+        TypeKind.STRING,
+        TypeKind.INT,
+        TypeKind.LONG,
+        TypeKind.DOUBLE,
+        TypeKind.BOOLEAN,
+        TypeKind.ENUM,
+        TypeKind.OBJECT,
+        TypeKind.LIST -> genericFactoryCode()
+        TypeKind.CUSTOM -> customTypeFactoryCode()
+        TypeKind.FRAGMENT,
+        TypeKind.INLINE_FRAGMENT -> fragmentFactoryCode()
     }
 }
 

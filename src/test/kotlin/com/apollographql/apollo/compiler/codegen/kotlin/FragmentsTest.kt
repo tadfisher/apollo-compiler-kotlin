@@ -23,8 +23,7 @@ class FragmentsTest {
                         ResponseFieldSpec(
                                 name = "name",
                                 doc = "The name of the character",
-                                type = stringRef.copy(isOptional = false),
-                                responseType = ResponseField.Type.STRING
+                                type = stringRef.copy(isOptional = false)
                         )
                 )),
                 possibleTypes = listOf("Human", "Droid")

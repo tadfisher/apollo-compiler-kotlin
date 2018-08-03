@@ -20,14 +20,14 @@ data class OperationSpec(
         val id: String,
         val name: String,
         val operation: OperationType,
-        val definition: String,
-        val optionalType: KClass<*>?,
+        val source: String,
+        val optionalType: KClass<*>? = null,
         val data: OperationDataSpec,
-        val variables: OperationVariablesSpec?
+        val variables: OperationVariablesSpec? = null
 )
 
 data class SelectionSetSpec(
-        val fields: List<ResponseFieldSpec>,
+        val fields: List<ResponseFieldSpec> = emptyList(),
         val fragmentSpreads: List<FragmentSpreadSpec> = emptyList(),
         val inlineFragments: List<InlineFragmentSpec> = emptyList()
 )
@@ -53,7 +53,6 @@ data class ResponseFieldSpec(
         val typeName: String = name.capitalize(),
         override val doc: String = "",
         val type: TypeRef,
-        val responseType: ResponseField.Type,
         val arguments: List<ArgumentSpec> = emptyList(),
         val skipIf: List<VariableValue> = emptyList(),
         val includeIf: List<VariableValue> = emptyList(),
@@ -65,7 +64,7 @@ data class ResponseFieldSpec(
 
 data class FragmentSpreadSpec(
         val fragmentName: String,
-        val selections: SelectionSetSpec
+        val selections: SelectionSetSpec? = null
 )
 
 data class InlineFragmentSpec(
@@ -108,16 +107,18 @@ data class TypeRef(
     }
 }
 
-enum class TypeKind(val readMethod: String, val writeMethod: String) {
-    STRING("readString", "writeString"),
-    INT("readInt", "writeInt"),
-    LONG("readLong", "writeLong"),
-    DOUBLE("readDouble", "writeDouble"),
-    BOOLEAN("readBoolean", "writeBoolean"),
-    ENUM("readString", "writeString"),
-    OBJECT("readObject", "writeObject"),
-    LIST("readList", "writeList"),
-    CUSTOM("readCustomType", "writeCustom")
+enum class TypeKind(val readMethod: String, val writeMethod: String, val factoryMethod: String) {
+    STRING("readString", "writeString", "forString"),
+    INT("readInt", "writeInt", "forInt"),
+    LONG("readLong", "writeLong", "forLong"),
+    DOUBLE("readDouble", "writeDouble", "forDouble"),
+    BOOLEAN("readBoolean", "writeBoolean", "forBoolean"),
+    ENUM("readString", "writeString", "forString"),
+    OBJECT("readObject", "writeObject", "forObject"),
+    LIST("readList", "writeList", "forList"),
+    CUSTOM("readCustomType", "writeCustom", "forCustomType"),
+    FRAGMENT("readConditional", "", "forFragment"),
+    INLINE_FRAGMENT("readConditional", "", "forInlineFragment")
 }
 
 sealed class TypeDefinitionSpec

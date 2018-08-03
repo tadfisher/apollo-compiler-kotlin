@@ -26,14 +26,12 @@ class SelectionsTest {
                         ResponseFieldSpec(
                                 name = "number",
                                 doc = "A number.",
-                                type = floatRef,
-                                responseType = ResponseField.Type.DOUBLE
+                                type = floatRef
                         ),
                         ResponseFieldSpec(
                                 name = "string",
                                 doc = "A string.",
-                                type = stringRef.copy(isOptional = false),
-                                responseType = ResponseField.Type.STRING
+                                type = stringRef.copy(isOptional = false)
                         )
                 )
         )
@@ -78,21 +76,18 @@ class SelectionsTest {
                                 type = floatRef.copy(
                                         isOptional = false,
                                         optionalType = Optional::class
-                                ),
-                                responseType = ResponseField.Type.DOUBLE
+                                )
                         ),
                         ResponseFieldSpec(
                                 name = "optionalNumber",
                                 type = floatRef.copy(
                                         isOptional = true,
                                         optionalType = Optional::class
-                                ),
-                                responseType = ResponseField.Type.DOUBLE
+                                )
                         ),
                         ResponseFieldSpec(
                                 name = "string",
-                                type = stringRef.copy(isOptional = false),
-                                responseType = ResponseField.Type.STRING
+                                type = stringRef.copy(isOptional = false)
                         )
                 )
         )
@@ -144,7 +139,6 @@ class SelectionsTest {
                         ResponseFieldSpec(
                                 name = "heroWithReview",
                                 type = heroRef,
-                                responseType = ResponseField.Type.OBJECT,
                                 arguments = listOf(
                                         ArgumentSpec(
                                                 name = "episode",
@@ -168,13 +162,11 @@ class SelectionsTest {
                                         fields = listOf(
                                                 ResponseFieldSpec(
                                                         name = "name",
-                                                        type = stringRef,
-                                                        responseType = ResponseField.Type.STRING
+                                                        type = stringRef
                                                 ),
                                                 ResponseFieldSpec(
                                                         name = "height",
                                                         type = floatRef,
-                                                        responseType = ResponseField.Type.DOUBLE,
                                                         arguments = listOf(
                                                                 ArgumentSpec(
                                                                         name = "unit",
@@ -215,33 +207,27 @@ class SelectionsTest {
                 fields = listOf(
                         ResponseFieldSpec(
                                 name = "number",
-                                type = floatRef,
-                                responseType = ResponseField.Type.DOUBLE
+                                type = floatRef
                         ),
                         ResponseFieldSpec(
                                 name = "string",
-                                type = stringRef.copy(isOptional = false),
-                                responseType = ResponseField.Type.STRING
+                                type = stringRef.copy(isOptional = false)
                         ),
                         ResponseFieldSpec(
                                 name = "unit",
-                                type = unitRef,
-                                responseType = ResponseField.Type.ENUM
+                                type = unitRef
                         ),
                         ResponseFieldSpec(
                                 name = "heroWithReview",
-                                type = heroRef,
-                                responseType = ResponseField.Type.OBJECT
+                                type = heroRef
                         ),
                         ResponseFieldSpec(
                                 name = "list",
-                                type = listRef,
-                                responseType = ResponseField.Type.LIST
+                                type = listRef
                         ),
                         ResponseFieldSpec(
                                 name = "custom",
-                                type = customRef,
-                                responseType = ResponseField.Type.CUSTOM
+                                type = customRef
                         )
                 )
         )
@@ -272,28 +258,23 @@ class SelectionsTest {
                 fields = listOf(
                         ResponseFieldSpec(
                                 name = "number",
-                                type = floatRef,
-                                responseType = ResponseField.Type.DOUBLE
+                                type = floatRef
                         ),
                         ResponseFieldSpec(
                                 name = "unit",
-                                type = unitRef,
-                                responseType = ResponseField.Type.ENUM
+                                type = unitRef
                         ),
                         ResponseFieldSpec(
                                 name = "heroWithReview",
-                                type = heroRef,
-                                responseType = ResponseField.Type.OBJECT
+                                type = heroRef
                         ),
                         ResponseFieldSpec(
                                 name = "list",
-                                type = listRef,
-                                responseType = ResponseField.Type.LIST
+                                type = listRef
                         ),
                         ResponseFieldSpec(
                                 name = "custom",
-                                type = customRef,
-                                responseType = ResponseField.Type.CUSTOM
+                                type = customRef
                         )
                 )
         )

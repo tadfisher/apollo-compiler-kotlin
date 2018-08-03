@@ -7,6 +7,8 @@ import com.apollographql.apollo.api.internal.Optional
 import com.apollographql.apollo.compiler.ast.EnumValue
 import com.apollographql.apollo.compiler.ast.OperationType
 import com.apollographql.apollo.compiler.ast.VariableValue
+import com.apollographql.apollo.compiler.ir.FragmentSpec
+import com.apollographql.apollo.compiler.ir.FragmentSpreadSpec
 import com.apollographql.apollo.compiler.ir.OperationDataSpec
 import com.apollographql.apollo.compiler.ir.OperationSpec
 import com.apollographql.apollo.compiler.ir.OperationVariablesSpec
@@ -28,7 +30,7 @@ class OperationsTest {
                 id = "1234",
                 name = "TestQuery",
                 operation = OperationType.QUERY,
-                definition = """
+                source = """
                     query TestQuery {
                         hero {
                           __typename
@@ -46,20 +48,17 @@ class OperationsTest {
                                         name = "Hero",
                                         kind = TypeKind.OBJECT
                                 ),
-                                responseType = ResponseField.Type.OBJECT,
                                 selections = SelectionSetSpec(fields = listOf(
                                         typenameSpec,
                                         ResponseFieldSpec(
                                                 name = "id",
                                                 doc = "ID of the hero.",
-                                                type = idRef,
-                                                responseType = ResponseField.Type.CUSTOM
+                                                type = idRef
                                         ),
                                         ResponseFieldSpec(
                                                 name = "name",
                                                 doc = "Hero name.",
-                                                type = stringRef,
-                                                responseType = ResponseField.Type.STRING
+                                                type = stringRef
                                         )
                                 ))
                 )))),
@@ -176,7 +175,7 @@ class OperationsTest {
                 id = "1234",
                 name = "TestQuery",
                 operation = OperationType.QUERY,
-                definition = """
+                source = """
                     query TestQuery(${'$'}epsiode: Episode, ${'$'}IncludeName: Boolean!
                         hero(episode: ${'$'}episode) {
                           __typename
@@ -193,14 +192,12 @@ class OperationsTest {
                                         name = "Hero",
                                         kind = TypeKind.OBJECT
                                 ),
-                                responseType = ResponseField.Type.OBJECT,
                                 selections = SelectionSetSpec(fields = listOf(
                                         typenameSpec,
                                         ResponseFieldSpec(
                                                 name = "name",
                                                 doc = "Hero name.",
                                                 type = stringRef,
-                                                responseType = ResponseField.Type.STRING,
                                                 includeIf = listOf(VariableValue("IncludeName"))
                                         )
                                 ))
@@ -335,6 +332,49 @@ class OperationsTest {
     }
 
     @Test
+    fun `emits query operation type with simple fragment`() {
+        val fragmentSpec = FragmentSpec(
+                name = "HeroDetails",
+                source = """
+                    fragment HeroDetails on Character {
+                      name
+                    }
+                """.trimIndent(),
+                selections = SelectionSetSpec(fields = listOf(
+                        ResponseFieldSpec(
+                                name = "name",
+                                doc = "The name of the character",
+                                type = stringRef.copy(isOptional = false)
+                        )
+                ))
+        )
+
+        val spec = OperationSpec(
+                id = "1234",
+                name = "TestQuery",
+                operation = OperationType.QUERY,
+                source = """
+                    query TestQuery {
+                      hero {
+                        ...HeroDetails
+                      }
+                    }
+                """.trimIndent(),
+                data = OperationDataSpec(selections = SelectionSetSpec(
+                        fields = listOf(ResponseFieldSpec(
+                                name = "hero",
+                                type = heroRef,
+                                selections = SelectionSetSpec(
+                                        fragmentSpreads = listOf(
+                                                FragmentSpreadSpec("HeroDetails")
+                                        )
+                                )
+                        ))
+                ))
+        )
+    }
+
+    @Test
     fun `writes variables type`() {
         val spec = OperationVariablesSpec(listOf(
                 VariableSpec(
@@ -411,21 +451,18 @@ class OperationsTest {
                                         type = floatRef.copy(
                                                 isOptional = false,
                                                 optionalType = Optional::class
-                                        ),
-                                        responseType = ResponseField.Type.DOUBLE
+                                        )
                                 ),
                                 ResponseFieldSpec(
                                         name = "optionalNumber",
                                         type = floatRef.copy(
                                                 isOptional = true,
                                                 optionalType = Optional::class
-                                        ),
-                                        responseType = ResponseField.Type.DOUBLE
+                                        )
                                 ),
                                 ResponseFieldSpec(
                                         name = "string",
-                                        type = stringRef.copy(isOptional = false),
-                                        responseType = ResponseField.Type.STRING
+                                        type = stringRef.copy(isOptional = false)
                                 )
                         )
                 )

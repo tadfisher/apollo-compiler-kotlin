@@ -28,7 +28,6 @@ import com.squareup.kotlinpoet.PropertySpec
 import com.squareup.kotlinpoet.TypeName
 import com.squareup.kotlinpoet.TypeSpec
 import com.squareup.kotlinpoet.asClassName
-import javax.annotation.Generated
 
 fun OperationSpec.typeSpec(): TypeSpec {
     val className = ClassName("", name)
@@ -48,7 +47,7 @@ fun OperationSpec.typeSpec(): TypeSpec {
         addType(TypeSpec.companionObjectBuilder()
                 .addProperty(
                         PropertySpec.builder(Operations.definitionProperty, STRING, KModifier.CONST)
-                                .initializer("%S", definition)
+                                .initializer("%S", source)
                                 .build())
                 .addProperty(PropertySpec.builder(Operations.idProperty, STRING, KModifier.CONST)
                         .initializer("%S", id)

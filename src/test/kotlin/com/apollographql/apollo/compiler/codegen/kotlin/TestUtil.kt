@@ -18,6 +18,11 @@ fun FunSpec.code() =
 fun PropertySpec.code() =
         FileSpec.builder("", "code").addProperty(this).build().toString().dropImports().trim()
 
+val characterRef = TypeRef(
+        name = "Character",
+        kind = TypeKind.OBJECT
+)
+
 val heroRef = TypeRef(
         name = "HeroWithReview",
         kind = TypeKind.OBJECT
@@ -95,6 +100,5 @@ val customRef = TypeRef(
 
 val typenameSpec = ResponseFieldSpec(
         name = "__typename",
-        type = stringRef.copy(isOptional = false),
-        responseType = ResponseField.Type.STRING
+        type = stringRef.copy(isOptional = false)
 )

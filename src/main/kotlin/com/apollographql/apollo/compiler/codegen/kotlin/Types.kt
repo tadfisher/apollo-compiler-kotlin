@@ -76,6 +76,8 @@ fun TypeRef.readValueCode(
         TypeKind.OBJECT -> readObjectCode(varName, readerParam)
         TypeKind.LIST -> readListCode(varName, readerParam)
         TypeKind.CUSTOM -> readCustomCode(varName, readerParam)
+        TypeKind.FRAGMENT -> TODO()
+        TypeKind.INLINE_FRAGMENT -> TODO()
     }
 }
 
@@ -171,6 +173,8 @@ fun TypeRef.readListItemStatement(itemReaderParam: String): CodeBlock {
         TypeKind.OBJECT -> readObject()
         TypeKind.LIST -> readList()
         TypeKind.CUSTOM -> readCustom()
+        TypeKind.FRAGMENT -> TODO()
+        TypeKind.INLINE_FRAGMENT -> TODO()
     }
 }
 
@@ -225,6 +229,8 @@ fun TypeRef.writeValueCode(
         TypeKind.LIST ->
             writeListCode(varName, propertyName, writerParam, itemWriterParam, listWriterType)
         TypeKind.CUSTOM -> writeCustomCode(varName, propertyName, writerParam)
+        TypeKind.FRAGMENT -> TODO()
+        TypeKind.INLINE_FRAGMENT -> TODO()
     }}
 
 fun TypeRef.writeScalarCode(
@@ -337,6 +343,8 @@ fun TypeRef.writeListItemCode(
         TypeKind.OBJECT -> writeObject()
         TypeKind.LIST -> writeList()
         TypeKind.CUSTOM -> writeCustom()
+        TypeKind.FRAGMENT -> TODO()
+        TypeKind.INLINE_FRAGMENT -> TODO()
     }
 }
 

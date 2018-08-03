@@ -42,7 +42,6 @@ fun SelectionSetSpec.dataClassSpec(name: ClassName): TypeSpec {
                 .build()
     }
 
-
     val optionalTypes: List<ClassName?> = fields.map {
         it.type.takeIf { it.isOptional }?.optionalType?.asClassName()
     }
