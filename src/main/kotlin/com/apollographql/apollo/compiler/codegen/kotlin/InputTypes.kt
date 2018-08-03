@@ -113,6 +113,10 @@ fun EnumValueSpec.enumConstantSpec(): TypeSpec {
     return with (TypeSpec.anonymousClassBuilder()) {
         if (doc.isNotEmpty()) addKdoc("%L\n", doc)
 
+        if (deprecationReason != null) {
+            addDeprecatedAnnotation(deprecationReason)
+        }
+
         addSuperclassConstructorParameter("%S", name)
 
         build()

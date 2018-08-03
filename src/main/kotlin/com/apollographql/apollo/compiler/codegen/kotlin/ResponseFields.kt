@@ -119,12 +119,3 @@ fun ResponseFieldSpec.conditionsCode(): CodeBlock {
             .add(")")
             .build()
 }
-
-fun List<ResponseFieldSpec>.kdoc(): CodeBlock {
-    return CodeBlock.builder()
-            .add("%L", mapNotNull { field ->
-                field.doc.takeUnless { it.isEmpty() }
-                        ?.let { CodeBlock.of("@param %L %L", field.name, it) }
-            }.join("\n", suffix = "\n"))
-            .build()
-}

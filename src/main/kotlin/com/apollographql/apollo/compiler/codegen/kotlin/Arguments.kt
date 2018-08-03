@@ -11,12 +11,7 @@ import com.apollographql.apollo.compiler.ast.ScalarValue
 import com.apollographql.apollo.compiler.ast.StringValue
 import com.apollographql.apollo.compiler.ast.Value
 import com.apollographql.apollo.compiler.ast.VariableValue
-import com.apollographql.apollo.compiler.ir.ArgumentSpec
 import com.squareup.kotlinpoet.CodeBlock
-
-fun ArgumentSpec.mapEntryCode(): CodeBlock {
-    return CodeBlock.of("%S to %L", name, value.argumentValueCode())
-}
 
 fun Value.argumentValueCode(): CodeBlock {
     return when (this) {

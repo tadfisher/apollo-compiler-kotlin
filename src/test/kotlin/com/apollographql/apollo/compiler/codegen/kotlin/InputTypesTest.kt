@@ -315,6 +315,11 @@ class InputTypesTest {
                                 name = "jedi",
                                 propertyName = "JEDI",
                                 doc = "Star Wars Episode VI: Return of the Jedi, released in 1983."
+                        ),
+                        EnumValueSpec(
+                                name = "PHANTOM_MENACE",
+                                doc = "Star Wars Episode I: The Phantom Menace, released in 1997.",
+                                deprecationReason = "We don't talk about the prequels."
                         )
                 )
         )
@@ -339,6 +344,12 @@ class InputTypesTest {
                  * Star Wars Episode VI: Return of the Jedi, released in 1983.
                  */
                 JEDI("jedi"),
+
+                /**
+                 * Star Wars Episode I: The Phantom Menace, released in 1997.
+                 */
+                @Deprecated("We don't talk about the prequels.")
+                PHANTOM_MENACE("PHANTOM_MENACE"),
 
                 /**
                  * Auto-generated constant for unknown enum values.

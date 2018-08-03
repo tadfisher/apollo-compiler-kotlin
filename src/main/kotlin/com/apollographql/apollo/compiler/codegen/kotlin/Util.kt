@@ -6,12 +6,17 @@ import com.squareup.kotlinpoet.CodeBlock
 import com.squareup.kotlinpoet.TypeSpec
 import javax.annotation.Generated
 
+fun TypeSpec.Builder.addDeprecatedAnnotation(reason: String): TypeSpec.Builder {
+    return addAnnotation(AnnotationSpec.builder(Deprecated::class)
+            .addMember("%S", reason)
+            .build())
+}
+
 fun TypeSpec.Builder.addGeneratedAnnotation(): TypeSpec.Builder {
     return addAnnotation(AnnotationSpec.builder(Generated::class)
             .addMember("%S", "Apollo GraphQL")
             .build())
 }
-
 
 fun List<CodeBlock>.join(
         separator: String = ",%W",

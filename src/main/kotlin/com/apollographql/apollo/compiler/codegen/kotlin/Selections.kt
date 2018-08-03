@@ -28,7 +28,7 @@ fun SelectionSetSpec.dataClassSpec(name: ClassName): TypeSpec {
     ): FunSpec {
         val otherFields = fields.filterNot { it.name == Selections.typenameField }
         return FunSpec.constructorBuilder()
-                .addKdoc(otherFields.kdoc())
+                .addKdoc(otherFields.parameterKdoc())
                 .addParameters(otherFields.map { it.constructorParameterSpec(maybeOptional) })
                 .callThisConstructor(CodeBlock.of("%L",
                         fields.map {
@@ -59,7 +59,7 @@ fun SelectionSetSpec.dataClassSpec(name: ClassName): TypeSpec {
                 .build())
 
         if (fields.any { it.doc.isNotEmpty() }) {
-            addKdoc(fields.kdoc())
+            addKdoc(fields.parameterKdoc())
         }
 
         if (hasOptionalTypes) {

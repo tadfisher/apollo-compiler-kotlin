@@ -5,8 +5,16 @@ import com.apollographql.apollo.compiler.ast.OperationType
 import com.apollographql.apollo.compiler.ast.Value
 import com.apollographql.apollo.compiler.ast.VariableValue
 import com.apollographql.apollo.compiler.util.lazyPlus
-import kotlin.coroutines.experimental.buildSequence
+import java.util.Locale
 import kotlin.reflect.KClass
+
+interface WithDoc {
+    val doc: String
+}
+
+interface PropertyWithDoc : WithDoc {
+    val propertyName: String
+}
 
 data class OperationSpec(
         val id: String,
@@ -30,10 +38,6 @@ data class OperationDataSpec(
 
 data class OperationVariablesSpec(
         val variables: List<VariableSpec>
-)
-
-data class OperationTypesSpec(
-        val types: List<OperationType>
 )
 
 data class VariableSpec(
@@ -115,3 +119,47 @@ enum class TypeKind(val readMethod: String, val writeMethod: String) {
     LIST("readList", "writeList"),
     CUSTOM("readCustomType", "writeCustom")
 }
+
+sealed class TypeDefinitionSpec
+data class InputObjectTypeSpec(
+        val name: String,
+        val doc: String = "",
+        val values: List<InputValueSpec>
+) : TypeDefinitionSpec()
+
+data class InputValueSpec(
+        val name: String,
+        override val propertyName: String = name.decapitalize(),
+        override val doc: String = "",
+        val type: TypeRef,
+        val defaultValue: Value? = null
+) : PropertyWithDoc
+
+data class EnumTypeSpec(
+        val name: String,
+        val doc: String = "",
+        val values: List<EnumValueSpec>
+) : TypeDefinitionSpec() {
+    companion object {
+        val unknownValue = EnumValueSpec(
+                name = "_UNKNOWN",
+                propertyName = "_UNKNOWN",
+                doc = "Auto-generated constant for unknown enum values.")
+    }
+}
+
+data class EnumValueSpec(
+        val name: String,
+        override val propertyName: String = name.toUpperCase(Locale.ENGLISH),
+        override val doc: String = "",
+        val deprecationReason: String? = null
+) : PropertyWithDoc
+
+data class CustomTypesSpec(
+        val types: List<ScalarTypeSpec>
+)
+
+data class ScalarTypeSpec(
+        val name: String,
+        val type: TypeRef
+) : TypeDefinitionSpec()
