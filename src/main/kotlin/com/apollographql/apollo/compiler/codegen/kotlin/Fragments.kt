@@ -45,6 +45,8 @@ fun FragmentSpec.typeSpec(): TypeSpec {
                 .addCode("return %L\n", Selections.typenameField)
                 .build())
 
+        addTypes(selections.typeSpecs())
+
         build()
     }
 }

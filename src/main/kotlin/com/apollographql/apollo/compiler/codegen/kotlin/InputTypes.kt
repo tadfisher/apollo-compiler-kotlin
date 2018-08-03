@@ -43,7 +43,7 @@ fun InputObjectTypeSpec.typeSpec(className: ClassName): TypeSpec {
 
     return TypeSpec.classBuilder(className)
             .addGeneratedAnnotation()
-            .addKdoc(values.parameterKdoc())
+            .addParameterKdoc(values)
             .addModifiers(KModifier.DATA)
             .primaryConstructor(FunSpec.constructorBuilder()
                     .addParameters(values.map { it.constructorParameterSpec() })

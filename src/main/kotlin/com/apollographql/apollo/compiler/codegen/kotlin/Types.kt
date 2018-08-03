@@ -57,11 +57,7 @@ fun TypeRef.initializerCode(initialValue: Value): CodeBlock {
 fun TypeRef.readResponseFieldValueCode(
         varName: String,
         propertyName: String
-): CodeBlock {
-    val typeName = typeName(false).let { if (isOptional) it.asNullable() else it }
-    return CodeBlock.of("val %L: %T = %L",
-            propertyName, typeName, wrapNullCheck(readValueCode(varName), propertyName))
-}
+): CodeBlock = wrapNullCheck(readValueCode(varName), propertyName)
 
 fun TypeRef.readValueCode(
         varName: String,

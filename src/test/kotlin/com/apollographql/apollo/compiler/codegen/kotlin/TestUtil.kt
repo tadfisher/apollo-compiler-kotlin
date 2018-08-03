@@ -75,7 +75,8 @@ val idRef = TypeRef(
         name = "CustomType.ID",
         jvmName = String::class.qualifiedName!!,
         kind = TypeKind.CUSTOM,
-        isOptional = true
+
+        isOptional = false
 )
 
 val colorInputRef = TypeRef(

@@ -101,6 +101,7 @@ class OperationsTest {
                  * @param hero A hero.
                  */
                 data class Data(val hero: Hero?) : Operation.Data {
+                    @delegate:Transient
                     internal val _marshaller: ResponseFieldMarshaller by lazy {
                                 ResponseFieldMarshaller { _writer ->
                                     _writer.writeObject("RESPONSE_FIELDS[0]", hero?._marshaller)
@@ -116,12 +117,11 @@ class OperationsTest {
                                 )
 
                         @JvmField
-                        val MAPPER: ResponseFieldMapper<Data> = ResponseFieldMapper<Data> { _reader ->
-                                    val hero: Hero? = _reader.readObject(RESPONSE_FIELDS[0], ResponseReader.ObjectReader<Hero> {
+                        val MAPPER: ResponseFieldMapper<Data> = ResponseFieldMapper<Data> { _reader -> Data(
+                                    _reader.readObject(RESPONSE_FIELDS[0], ResponseReader.ObjectReader<Hero> {
                                         Hero.MAPPER.map(it)
                                     })
-                                    Data(hero)
-                                }
+                                )}
                     }
                 }
 
@@ -131,9 +131,10 @@ class OperationsTest {
                  */
                 data class Hero(
                     val __typename: String,
-                    val id: String?,
+                    val id: String,
                     val name: String?
                 ) {
+                    @delegate:Transient
                     internal val _marshaller: ResponseFieldMarshaller by lazy {
                                 ResponseFieldMarshaller { _writer ->
                                     _writer.writeString("RESPONSE_FIELDS[0]", __typename)
@@ -146,23 +147,22 @@ class OperationsTest {
                      * @param id ID of the hero.
                      * @param name Hero name.
                      */
-                    constructor(id: String?, name: String?) : this("Hero", id, name)
+                    constructor(id: String, name: String?) : this("Hero", id, name)
 
                     companion object {
                         @JvmField
                         internal val RESPONSE_FIELDS: Array<ResponseField> = arrayOf(
                                     ResponseField.forString("__typename", "__typename", null, false, emptyList()),
-                                    ResponseField.forCustomType("id", "id", null, true, CustomType.ID, emptyList()),
+                                    ResponseField.forCustomType("id", "id", null, false, CustomType.ID, emptyList()),
                                     ResponseField.forString("name", "name", null, true, emptyList())
                                 )
 
                         @JvmField
-                        val MAPPER: ResponseFieldMapper<Hero> = ResponseFieldMapper<Hero> { _reader ->
-                                    val __typename: String = Utils.checkNotNull(_reader.readString(RESPONSE_FIELDS[0]), "__typename == null")
-                                    val id: String? = _reader.readCustomType(RESPONSE_FIELDS[1] as ResponseField.CustomTypeField)
-                                    val name: String? = _reader.readString(RESPONSE_FIELDS[2])
-                                    Hero(__typename, id, name)
-                                }
+                        val MAPPER: ResponseFieldMapper<Hero> = ResponseFieldMapper<Hero> { _reader -> Hero(
+                                    Utils.checkNotNull(_reader.readString(RESPONSE_FIELDS[0]), "__typename == null"),
+                                    Utils.checkNotNull(_reader.readCustomType(RESPONSE_FIELDS[1] as ResponseField.CustomTypeField), "id == null"),
+                                    _reader.readString(RESPONSE_FIELDS[2])
+                                )}
                     }
                 }
             }
@@ -270,6 +270,7 @@ class OperationsTest {
                  * @param hero A hero.
                  */
                 data class Data(val hero: Hero?) : Operation.Data {
+                    @delegate:Transient
                     internal val _marshaller: ResponseFieldMarshaller by lazy {
                                 ResponseFieldMarshaller { _writer ->
                                     _writer.writeObject("RESPONSE_FIELDS[0]", hero?._marshaller)
@@ -285,12 +286,11 @@ class OperationsTest {
                                 )
 
                         @JvmField
-                        val MAPPER: ResponseFieldMapper<Data> = ResponseFieldMapper<Data> { _reader ->
-                                    val hero: Hero? = _reader.readObject(RESPONSE_FIELDS[0], ResponseReader.ObjectReader<Hero> {
+                        val MAPPER: ResponseFieldMapper<Data> = ResponseFieldMapper<Data> { _reader -> Data(
+                                    _reader.readObject(RESPONSE_FIELDS[0], ResponseReader.ObjectReader<Hero> {
                                         Hero.MAPPER.map(it)
                                     })
-                                    Data(hero)
-                                }
+                                )}
                     }
                 }
 
@@ -298,6 +298,7 @@ class OperationsTest {
                  * @param name Hero name.
                  */
                 data class Hero(val __typename: String, val name: String?) {
+                    @delegate:Transient
                     internal val _marshaller: ResponseFieldMarshaller by lazy {
                                 ResponseFieldMarshaller { _writer ->
                                     _writer.writeString("RESPONSE_FIELDS[0]", __typename)
@@ -320,11 +321,10 @@ class OperationsTest {
                                 )
 
                         @JvmField
-                        val MAPPER: ResponseFieldMapper<Hero> = ResponseFieldMapper<Hero> { _reader ->
-                                    val __typename: String = Utils.checkNotNull(_reader.readString(RESPONSE_FIELDS[0]), "__typename == null")
-                                    val name: String? = _reader.readString(RESPONSE_FIELDS[1])
-                                    Hero(__typename, name)
-                                }
+                        val MAPPER: ResponseFieldMapper<Hero> = ResponseFieldMapper<Hero> { _reader -> Hero(
+                                    Utils.checkNotNull(_reader.readString(RESPONSE_FIELDS[0]), "__typename == null"),
+                                    _reader.readString(RESPONSE_FIELDS[1])
+                                )}
                     }
                 }
             }
@@ -474,6 +474,7 @@ class OperationsTest {
                 val optionalNumber: Optional<Double>,
                 val string: String
             ) : Operation.Data {
+                @delegate:Transient
                 internal val _marshaller: ResponseFieldMarshaller by lazy {
                             ResponseFieldMarshaller { _writer ->
                                 _writer.writeDouble("RESPONSE_FIELDS[0]", number)
@@ -499,12 +500,11 @@ class OperationsTest {
                             )
 
                     @JvmField
-                    val MAPPER: ResponseFieldMapper<Data> = ResponseFieldMapper<Data> { _reader ->
-                                val number: Double = Utils.checkNotNull(_reader.readDouble(RESPONSE_FIELDS[0]), "number == null")
-                                val optionalNumber: Double? = _reader.readDouble(RESPONSE_FIELDS[1])
-                                val string: String = Utils.checkNotNull(_reader.readString(RESPONSE_FIELDS[2]), "string == null")
-                                Data(number, optionalNumber, string)
-                            }
+                    val MAPPER: ResponseFieldMapper<Data> = ResponseFieldMapper<Data> { _reader -> Data(
+                                Utils.checkNotNull(_reader.readDouble(RESPONSE_FIELDS[0]), "number == null"),
+                                _reader.readDouble(RESPONSE_FIELDS[1]),
+                                Utils.checkNotNull(_reader.readString(RESPONSE_FIELDS[2]), "string == null")
+                            )}
                 }
             }
         """.trimIndent())

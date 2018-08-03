@@ -43,6 +43,7 @@ class SelectionsTest {
              * @param string A string.
              */
             data class Data(val number: Double?, val string: String) {
+                @delegate:Transient
                 internal val _marshaller: ResponseFieldMarshaller by lazy {
                             ResponseFieldMarshaller { _writer ->
                                 _writer.writeDouble("RESPONSE_FIELDS[0]", number)
@@ -58,11 +59,10 @@ class SelectionsTest {
                             )
 
                     @JvmField
-                    val MAPPER: ResponseFieldMapper<Data> = ResponseFieldMapper<Data> { _reader ->
-                                val number: Double? = _reader.readDouble(RESPONSE_FIELDS[0])
-                                val string: String = Utils.checkNotNull(_reader.readString(RESPONSE_FIELDS[1]), "string == null")
-                                Data(number, string)
-                            }
+                    val MAPPER: ResponseFieldMapper<Data> = ResponseFieldMapper<Data> { _reader -> Data(
+                                _reader.readDouble(RESPONSE_FIELDS[0]),
+                                Utils.checkNotNull(_reader.readString(RESPONSE_FIELDS[1]), "string == null")
+                            )}
                 }
             }
         """.trimIndent())
@@ -99,6 +99,7 @@ class SelectionsTest {
                 val optionalNumber: Optional<Double>,
                 val string: String
             ) {
+                @delegate:Transient
                 internal val _marshaller: ResponseFieldMarshaller by lazy {
                             ResponseFieldMarshaller { _writer ->
                                 _writer.writeDouble("RESPONSE_FIELDS[0]", number)
@@ -122,12 +123,11 @@ class SelectionsTest {
                             )
 
                     @JvmField
-                    val MAPPER: ResponseFieldMapper<Data> = ResponseFieldMapper<Data> { _reader ->
-                                val number: Double = Utils.checkNotNull(_reader.readDouble(RESPONSE_FIELDS[0]), "number == null")
-                                val optionalNumber: Double? = _reader.readDouble(RESPONSE_FIELDS[1])
-                                val string: String = Utils.checkNotNull(_reader.readString(RESPONSE_FIELDS[2]), "string == null")
-                                Data(number, optionalNumber, string)
-                            }
+                    val MAPPER: ResponseFieldMapper<Data> = ResponseFieldMapper<Data> { _reader -> Data(
+                                Utils.checkNotNull(_reader.readDouble(RESPONSE_FIELDS[0]), "number == null"),
+                                _reader.readDouble(RESPONSE_FIELDS[1]),
+                                Utils.checkNotNull(_reader.readString(RESPONSE_FIELDS[2]), "string == null")
+                            )}
                 }
             }
         """.trimIndent())
@@ -239,24 +239,23 @@ class SelectionsTest {
 
         assertThat(spec.responseMapperPropertySpec(ClassName("", "Data")).code()).isEqualTo("""
             @JvmField
-            val MAPPER: ResponseFieldMapper<Data> = ResponseFieldMapper<Data> { _reader ->
-                        val number: Double? = _reader.readDouble(RESPONSE_FIELDS[0])
-                        val string: String = Utils.checkNotNull(_reader.readString(RESPONSE_FIELDS[1]), "string == null")
-                        val unit: Unit? = _reader.readString(RESPONSE_FIELDS[2])?.let {
+            val MAPPER: ResponseFieldMapper<Data> = ResponseFieldMapper<Data> { _reader -> Data(
+                        _reader.readDouble(RESPONSE_FIELDS[0]),
+                        Utils.checkNotNull(_reader.readString(RESPONSE_FIELDS[1]), "string == null"),
+                        _reader.readString(RESPONSE_FIELDS[2])?.let {
                             Unit.safeValueOf(it)
-                        }
-                        val heroWithReview: HeroWithReview? = _reader.readObject(RESPONSE_FIELDS[3], ResponseReader.ObjectReader<HeroWithReview> {
+                        },
+                        _reader.readObject(RESPONSE_FIELDS[3], ResponseReader.ObjectReader<HeroWithReview> {
                             HeroWithReview.MAPPER.map(it)
-                        })
-                        val list: List<String?>? = _reader.readList(RESPONSE_FIELDS[4], ResponseReader.ListReader<List<String?>> { _itemReader ->
+                        }),
+                        _reader.readList(RESPONSE_FIELDS[4], ResponseReader.ListReader<List<String?>> { _itemReader ->
                             _itemReader.readString()
-                        })
-                        val custom: CustomType.CUSTOM? = _reader.readCustomType(RESPONSE_FIELDS[5] as ResponseField.CustomTypeField)
-                        val fragments: Fragments = Utils.checkNotNull(_reader.readConditional(RESPONSE_FIELDS[6], ResponseReader.ConditionalTypeReader<Fragments> { _conditionalType, _reader ->
+                        }),
+                        _reader.readCustomType(RESPONSE_FIELDS[5] as ResponseField.CustomTypeField),
+                        Utils.checkNotNull(_reader.readConditional(RESPONSE_FIELDS[6], ResponseReader.ConditionalTypeReader<Fragments> { _conditionalType, _reader ->
                             Fragments.MAPPER.map(_reader, _conditionalType)
                         }), "fragments == null")
-                        Data(number, string, unit, heroWithReview, list, custom, fragments)
-                    }
+                    )}
         """.trimIndent())
     }
 
@@ -292,6 +291,7 @@ class SelectionsTest {
         )
 
         assertThat(spec.responseMarshallerPropertySpec().code()).isEqualTo("""
+            @delegate:Transient
             internal val _marshaller: ResponseFieldMarshaller by lazy {
                         ResponseFieldMarshaller { _writer ->
                             _writer.writeDouble("RESPONSE_FIELDS[0]", number)
@@ -343,8 +343,9 @@ class SelectionsTest {
                 FragmentSpreadSpec(droidFragmentSpec)
         ))
 
-        assertThat(spec.fragmentsTypeSpec(ClassName("", "Fragments")).code()).isEqualTo("""
+        assertThat(spec.fragmentsTypeSpec().code()).isEqualTo("""
             data class Fragments(val humanDetails: HumanDetails?, val droidDetails: DroidDetails?) {
+                @delegate:Transient
                 val _marshaller: ResponseFieldMarshaller by lazy {
                             ResponseFieldMarshaller { _writer ->
                                 humanDetails?._marshaller.marshal(_writer)
@@ -353,13 +354,12 @@ class SelectionsTest {
                         }
 
                 companion object {
+                    @JvmField
                     val MAPPER: FragmentResponseFieldMapper<Fragments> =
-                            FragmentResponseFieldMapper<Fragments> { _reader, _conditionalType ->
-                                Fragments(
-                                    HumanDetails.MAPPER.takeIf (_conditionalType in HumanDetails.POSSIBLE_TYPES)?.map(_reader),
-                                    DroidDetails.MAPPER.takeIf (_conditionalType in DroidDetails.POSSIBLE_TYPES)?.map(_reader)
-                                )
-                            }
+                            FragmentResponseFieldMapper<Fragments> { _reader, _conditionalType -> Fragments(
+                                HumanDetails.MAPPER.takeIf (_conditionalType in HumanDetails.POSSIBLE_TYPES)?.map(_reader),
+                                DroidDetails.MAPPER.takeIf (_conditionalType in DroidDetails.POSSIBLE_TYPES)?.map(_reader)
+                            )}
                 }
             }
         """.trimIndent())

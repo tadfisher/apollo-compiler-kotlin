@@ -8,6 +8,7 @@ import com.apollographql.apollo.compiler.ir.FragmentSpreadSpec
 import com.apollographql.apollo.compiler.ir.ResponseFieldSpec
 import com.apollographql.apollo.compiler.ir.SelectionSetSpec
 import com.squareup.kotlinpoet.ARRAY
+import com.squareup.kotlinpoet.AnnotationSpec
 import com.squareup.kotlinpoet.ClassName
 import com.squareup.kotlinpoet.CodeBlock
 import com.squareup.kotlinpoet.FunSpec
@@ -31,7 +32,7 @@ fun SelectionSetSpec.dataClassSpec(name: ClassName): TypeSpec {
     ): FunSpec {
         val otherFields = fields.filterNot { it.name == Selections.typenameField }
         return FunSpec.constructorBuilder()
-                .addKdoc(otherFields.parameterKdoc())
+                .addParameterKdoc(otherFields)
                 .addParameters(otherFields.map { it.constructorParameterSpec(maybeOptional) })
                 .callThisConstructor(CodeBlock.of("%L",
                         fields.map {
@@ -59,10 +60,7 @@ fun SelectionSetSpec.dataClassSpec(name: ClassName): TypeSpec {
                 .addProperty(responseFieldsPropertySpec())
                 .addProperty(responseMapperPropertySpec(name))
                 .build())
-
-        if (fields.any { it.doc.isNotEmpty() }) {
-            addKdoc(fields.parameterKdoc())
-        }
+        addParameterKdoc(fields)
 
         if (hasOptionalTypes) {
             primaryConstructor(FunSpec.constructorBuilder()
@@ -94,7 +92,7 @@ fun SelectionSetSpec.dataClassSpec(name: ClassName): TypeSpec {
         }
 
         if (fragmentSpreads.isNotEmpty()) {
-            addType(fragmentsTypeSpec(name.nestedClass(Selections.fragmentsType)))
+            addType(fragmentsTypeSpec())
         }
 
         build()
@@ -120,16 +118,13 @@ fun SelectionSetSpec.responseMapperPropertySpec(forType: TypeName): PropertySpec
     val mapperCode = fields.mapIndexed { i, field ->
         val varName = "${Selections.responseFieldsProperty}[$i]"
         field.type.readResponseFieldValueCode(varName, field.responseName)
-    }.join("\n")
-
-    val builderCode = CodeBlock.of("%T(%L)", forType, fields.joinToString { it.responseName })
+    }.join(",\n")
 
     val mapperLambda = CodeBlock.of("""
-        %T { %L ->
+        %T { %L -> %T(
         %>%L
-        %L
-        %<}
-    """.trimIndent(), mapperType, Types.defaultReaderParam, mapperCode, builderCode)
+        %<)}
+    """.trimIndent(), mapperType, Types.defaultReaderParam, forType, mapperCode)
 
     return PropertySpec.builder(Selections.mapperProperty, mapperType)
             .addAnnotation(JvmField::class)
@@ -145,6 +140,7 @@ fun SelectionSetSpec.responseMarshallerPropertySpec(): PropertySpec {
 
     return PropertySpec.builder(
             Selections.marshallerProperty, RESPONSE_MARSHALLER, KModifier.INTERNAL)
+            .addTransientAnnotation(AnnotationSpec.UseSiteTarget.DELEGATE)
             .delegate("""
                 lazy {
                 %>%T { %L ->
@@ -155,7 +151,9 @@ fun SelectionSetSpec.responseMarshallerPropertySpec(): PropertySpec {
             .build()
 }
 
-fun SelectionSetSpec.fragmentsTypeSpec(className: ClassName): TypeSpec {
+fun SelectionSetSpec.fragmentsTypeSpec(): TypeSpec {
+    val className = ClassName("", Selections.fragmentsType)
+
     val hasOptionalTypes = fragmentSpreads.any { it.optionalType != null }
 
     val marshallerLambda = CodeBlock.of("""
@@ -168,11 +166,9 @@ fun SelectionSetSpec.fragmentsTypeSpec(className: ClassName): TypeSpec {
     )
 
     val mapperLambda = CodeBlock.of("""
-        %T { %L, %L ->
-        %>%T(
+        %T { %L, %L -> %T(
         %>%L
-        %<)
-        %<}
+        %<)}
     """.trimIndent(),
             FRAGMENT_RESPONSE_MAPPER.parameterizedBy(className),
             Types.defaultReaderParam, Types.conditionalTypeParam,
@@ -205,6 +201,7 @@ fun SelectionSetSpec.fragmentsTypeSpec(className: ClassName): TypeSpec {
         addProperties(fragmentSpreads.map { it.propertySpec() })
 
         addProperty(PropertySpec.builder(Selections.marshallerProperty, RESPONSE_MARSHALLER)
+                .addTransientAnnotation(AnnotationSpec.UseSiteTarget.DELEGATE)
                 .delegate("""
                     lazy {
                     %>%L
@@ -216,6 +213,7 @@ fun SelectionSetSpec.fragmentsTypeSpec(className: ClassName): TypeSpec {
                 .addProperty(PropertySpec.builder(
                         Selections.mapperProperty,
                         FRAGMENT_RESPONSE_MAPPER.parameterizedBy(className))
+                        .addAnnotation(JvmField::class)
                         .initializer(mapperLambda)
                         .build())
                 .build())

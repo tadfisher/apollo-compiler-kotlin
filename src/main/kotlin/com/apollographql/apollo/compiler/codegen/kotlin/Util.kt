@@ -3,6 +3,8 @@ package com.apollographql.apollo.compiler.codegen.kotlin
 import com.apollographql.apollo.compiler.ir.PropertyWithDoc
 import com.squareup.kotlinpoet.AnnotationSpec
 import com.squareup.kotlinpoet.CodeBlock
+import com.squareup.kotlinpoet.FunSpec
+import com.squareup.kotlinpoet.PropertySpec
 import com.squareup.kotlinpoet.TypeSpec
 import javax.annotation.Generated
 
@@ -16,6 +18,26 @@ fun TypeSpec.Builder.addGeneratedAnnotation(): TypeSpec.Builder {
     return addAnnotation(AnnotationSpec.builder(Generated::class)
             .addMember("%S", "Apollo GraphQL")
             .build())
+}
+
+fun PropertySpec.Builder.addTransientAnnotation(
+        useSiteTarget: AnnotationSpec.UseSiteTarget
+): PropertySpec.Builder {
+    return addAnnotation(AnnotationSpec.builder(Transient::class)
+            .useSiteTarget(useSiteTarget)
+            .build())
+}
+
+fun FunSpec.Builder.addParameterKdoc(parameters: List<PropertyWithDoc>) = apply {
+    if (parameters.any { it.doc.isNotEmpty() }) {
+        addKdoc(parameters.parameterKdoc())
+    }
+}
+
+fun TypeSpec.Builder.addParameterKdoc(parameters: List<PropertyWithDoc>) = apply {
+    if (parameters.any { it.doc.isNotEmpty() }) {
+        addKdoc(parameters.parameterKdoc())
+    }
 }
 
 fun List<CodeBlock>.join(
