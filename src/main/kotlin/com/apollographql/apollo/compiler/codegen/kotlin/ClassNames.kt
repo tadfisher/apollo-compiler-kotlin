@@ -1,5 +1,6 @@
 package com.apollographql.apollo.compiler.codegen.kotlin
 
+import com.apollographql.apollo.api.FragmentResponseFieldMapper
 import com.apollographql.apollo.api.Input
 import com.apollographql.apollo.api.InputFieldMarshaller
 import com.apollographql.apollo.api.InputFieldWriter
@@ -31,9 +32,12 @@ object ClassNames {
     val RESPONSE_MAPPER = ResponseFieldMapper::class.asClassName()
     val RESPONSE_OBJECT_READER = ResponseReader.ObjectReader::class.asClassName()
     val RESPONSE_LIST_READER = ResponseReader.ListReader::class.asClassName()
+    val RESPONSE_CONDITIONAL_READER = ResponseReader.ConditionalTypeReader::class.asClassName()
 
     val RESPONSE_MARSHALLER = ResponseFieldMarshaller::class.asClassName()
     val RESPONSE_LIST_WRITER = ResponseWriter.ListWriter::class.asClassName()
+
+    val FRAGMENT_RESPONSE_MAPPER = FragmentResponseFieldMapper::class.asClassName()
 
     val INPUT_FIELD_MARSHALLER = InputFieldMarshaller::class.asClassName()
     val INPUT_FIELD_LIST_WRITER = InputFieldWriter.ListWriter::class.asClassName()

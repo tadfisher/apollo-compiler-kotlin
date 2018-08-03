@@ -10,6 +10,7 @@ import com.apollographql.apollo.compiler.codegen.kotlin.ClassNames.GUAVA_OPTIONA
 import com.apollographql.apollo.compiler.codegen.kotlin.ClassNames.INPUT_FIELD_LIST_WRITER
 import com.apollographql.apollo.compiler.codegen.kotlin.ClassNames.INPUT_OPTIONAL
 import com.apollographql.apollo.compiler.codegen.kotlin.ClassNames.JAVA_OPTIONAL
+import com.apollographql.apollo.compiler.codegen.kotlin.ClassNames.RESPONSE_CONDITIONAL_READER
 import com.apollographql.apollo.compiler.codegen.kotlin.ClassNames.RESPONSE_LIST_READER
 import com.apollographql.apollo.compiler.codegen.kotlin.ClassNames.RESPONSE_LIST_WRITER
 import com.apollographql.apollo.compiler.codegen.kotlin.ClassNames.RESPONSE_OBJECT_READER
@@ -76,7 +77,7 @@ fun TypeRef.readValueCode(
         TypeKind.OBJECT -> readObjectCode(varName, readerParam)
         TypeKind.LIST -> readListCode(varName, readerParam)
         TypeKind.CUSTOM -> readCustomCode(varName, readerParam)
-        TypeKind.FRAGMENT -> TODO()
+        TypeKind.FRAGMENT -> readFragmentsCode(varName, readerParam)
         TypeKind.INLINE_FRAGMENT -> TODO()
     }
 }
@@ -173,14 +174,34 @@ fun TypeRef.readListItemStatement(itemReaderParam: String): CodeBlock {
         TypeKind.OBJECT -> readObject()
         TypeKind.LIST -> readList()
         TypeKind.CUSTOM -> readCustom()
-        TypeKind.FRAGMENT -> TODO()
-        TypeKind.INLINE_FRAGMENT -> TODO()
+        TypeKind.FRAGMENT,
+        TypeKind.INLINE_FRAGMENT -> throw UnsupportedOperationException(
+                "Lists of fragments are not allowed."
+        )
     }
 }
 
 fun TypeRef.readCustomCode(varName: String, readerParam: String): CodeBlock {
     return CodeBlock.of("%L.%L(%L as %T)",
             readerParam, kind.readMethod, varName, ResponseField.CustomTypeField::class)
+}
+
+fun TypeRef.readFragmentsCode(varName: String, readerParam: String): CodeBlock {
+    val fragmentsType = ClassName("", Selections.fragmentsType)
+
+    val readerLambda = CodeBlock.of("""
+        %T { %L, %L ->
+        %>%T.%L.map(%L, %L)
+        %<}
+    """.trimIndent(),
+            RESPONSE_CONDITIONAL_READER.parameterizedBy(fragmentsType),
+            Types.conditionalTypeParam, Types.defaultReaderParam,
+            fragmentsType, Selections.mapperProperty, Types.defaultReaderParam,
+            Types.conditionalTypeParam
+    )
+
+    return CodeBlock.of("%L.%L(%L, %L)",
+            readerParam, kind.readMethod, varName, readerLambda)
 }
 
 fun TypeRef.writeInputFieldValueCode(
@@ -229,7 +250,7 @@ fun TypeRef.writeValueCode(
         TypeKind.LIST ->
             writeListCode(varName, propertyName, writerParam, itemWriterParam, listWriterType)
         TypeKind.CUSTOM -> writeCustomCode(varName, propertyName, writerParam)
-        TypeKind.FRAGMENT -> TODO()
+        TypeKind.FRAGMENT -> writeFragmentsCode(propertyName, writerParam)
         TypeKind.INLINE_FRAGMENT -> TODO()
     }}
 
@@ -343,8 +364,8 @@ fun TypeRef.writeListItemCode(
         TypeKind.OBJECT -> writeObject()
         TypeKind.LIST -> writeList()
         TypeKind.CUSTOM -> writeCustom()
-        TypeKind.FRAGMENT -> TODO()
-        TypeKind.INLINE_FRAGMENT -> TODO()
+        TypeKind.FRAGMENT,
+        TypeKind.INLINE_FRAGMENT -> throw UnsupportedOperationException()
     }
 }
 
@@ -357,6 +378,14 @@ fun TypeRef.writeCustomCode(
     val valueCode = typeName.unwrapOptionalValue(propertyName, false)
     return CodeBlock.of("%L.%L(%S, %T, %L)",
             writerParam, kind.writeMethod, varName, ClassName.bestGuess(name), valueCode)
+}
+
+fun TypeRef.writeFragmentsCode(
+        propertyName: String,
+        writerParam: String
+): CodeBlock {
+    return CodeBlock.of("%L.%L.marshal(%L)",
+            propertyName, Selections.marshallerProperty, writerParam)
 }
 
 fun TypeName.isOptional(expectedOptionalType: ClassName? = null): Boolean {
@@ -435,6 +464,7 @@ object Types {
     const val defaultItemReaderParam = "_itemReader"
     const val defaultWriterParam = "_writer"
     const val defaultItemWriterParam = "_itemWriter"
+    const val conditionalTypeParam = "_conditionalType"
     const val enumSafeValueOfFun = "safeValueOf"
     const val checkNotNullFun = "checkNotNull"
 }

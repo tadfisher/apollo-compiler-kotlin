@@ -4,6 +4,7 @@ import com.apollographql.apollo.api.ResponseField
 import com.apollographql.apollo.compiler.ast.OperationType
 import com.apollographql.apollo.compiler.ast.Value
 import com.apollographql.apollo.compiler.ast.VariableValue
+import com.apollographql.apollo.compiler.codegen.kotlin.className
 import com.apollographql.apollo.compiler.util.lazyPlus
 import java.util.Locale
 import kotlin.reflect.KClass
@@ -63,8 +64,10 @@ data class ResponseFieldSpec(
 }
 
 data class FragmentSpreadSpec(
-        val fragmentName: String,
-        val selections: SelectionSetSpec? = null
+        val fragment: FragmentSpec,
+        val propertyName: String = fragment.name.decapitalize(),
+        val selections: SelectionSetSpec? = null,
+        val optionalType: KClass<*>? = null
 )
 
 data class InlineFragmentSpec(
@@ -167,6 +170,7 @@ data class ScalarTypeSpec(
 
 data class FragmentSpec(
         val name: String,
+        val jvmName: String = name.capitalize(),
         val source: String,
         val selections: SelectionSetSpec,
         val typeCondition: TypeRef? = null,

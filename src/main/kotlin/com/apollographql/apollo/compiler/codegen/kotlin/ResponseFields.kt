@@ -1,12 +1,15 @@
 package com.apollographql.apollo.compiler.codegen.kotlin
 
 import com.apollographql.apollo.api.ResponseField
+import com.apollographql.apollo.compiler.codegen.kotlin.ClassNames.RESPONSE_CONDITIONAL_READER
 import com.apollographql.apollo.compiler.ir.ResponseFieldSpec
 import com.apollographql.apollo.compiler.ir.TypeKind
 import com.squareup.kotlinpoet.ClassName
 import com.squareup.kotlinpoet.CodeBlock
+import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import com.squareup.kotlinpoet.ParameterSpec
 import com.squareup.kotlinpoet.PropertySpec
+import jdk.nashorn.internal.objects.NativeJava.typeName
 
 fun ResponseFieldSpec.constructorParameterSpec(maybeOptional: Boolean): ParameterSpec {
     val typeName = type.typeName(maybeOptional)

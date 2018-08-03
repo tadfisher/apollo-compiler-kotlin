@@ -29,7 +29,7 @@ class FragmentsTest {
                 possibleTypes = listOf("Human", "Droid")
         )
 
-        assertThat(spec.typeSpec(ClassName("", spec.name)).code()).isEqualTo("""
+        assertThat(spec.typeSpec().code()).isEqualTo("""
             /**
              * @param name The name of the character
              */

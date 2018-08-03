@@ -366,7 +366,7 @@ class OperationsTest {
                                 type = heroRef,
                                 selections = SelectionSetSpec(
                                         fragmentSpreads = listOf(
-                                                FragmentSpreadSpec("HeroDetails")
+                                                FragmentSpreadSpec(fragmentSpec)
                                         )
                                 )
                         ))

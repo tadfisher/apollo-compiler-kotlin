@@ -98,6 +98,12 @@ val customRef = TypeRef(
         kind = TypeKind.CUSTOM
 )
 
+val fragmentsRef = TypeRef(
+        name = "Fragments",
+        kind = TypeKind.FRAGMENT,
+        isOptional = false
+)
+
 val typenameSpec = ResponseFieldSpec(
         name = "__typename",
         type = stringRef.copy(isOptional = false)

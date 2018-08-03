@@ -13,7 +13,7 @@ import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import com.squareup.kotlinpoet.PropertySpec
 import com.squareup.kotlinpoet.TypeSpec
 
-fun FragmentSpec.typeSpec(className: ClassName): TypeSpec {
+fun FragmentSpec.typeSpec(): TypeSpec {
 
     val fragmentDefinition =
             PropertySpec.builder(Fragments.fragmentDefinitionProp, STRING)
@@ -28,7 +28,7 @@ fun FragmentSpec.typeSpec(className: ClassName): TypeSpec {
                     })
                     .build()
 
-    return with (selections.dataClassSpec(className).toBuilder()) {
+    return with (selections.dataClassSpec(className()).toBuilder()) {
         addGeneratedAnnotation()
 
         addSuperinterface(GraphqlFragment::class)
@@ -48,6 +48,8 @@ fun FragmentSpec.typeSpec(className: ClassName): TypeSpec {
         build()
     }
 }
+
+fun FragmentSpec.className(): ClassName = ClassName.bestGuess(jvmName)
 
 object Fragments {
     val fragmentDefinitionProp = "FRAGMENT_DEFINITION"

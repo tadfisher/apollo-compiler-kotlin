@@ -1,6 +1,5 @@
 package com.apollographql.apollo.compiler.codegen.kotlin
 
-import com.apollographql.apollo.api.ResponseField
 import com.apollographql.apollo.api.internal.Optional
 import com.apollographql.apollo.compiler.ast.EnumValue
 import com.apollographql.apollo.compiler.ast.IntValue
@@ -8,6 +7,8 @@ import com.apollographql.apollo.compiler.ast.ObjectField
 import com.apollographql.apollo.compiler.ast.ObjectValue
 import com.apollographql.apollo.compiler.ast.VariableValue
 import com.apollographql.apollo.compiler.ir.ArgumentSpec
+import com.apollographql.apollo.compiler.ir.FragmentSpec
+import com.apollographql.apollo.compiler.ir.FragmentSpreadSpec
 import com.apollographql.apollo.compiler.ir.ResponseFieldSpec
 import com.apollographql.apollo.compiler.ir.SelectionSetSpec
 import com.apollographql.apollo.compiler.ir.TypeKind
@@ -228,6 +229,10 @@ class SelectionsTest {
                         ResponseFieldSpec(
                                 name = "custom",
                                 type = customRef
+                        ),
+                        ResponseFieldSpec(
+                                name = "fragments",
+                                type = fragmentsRef
                         )
                 )
         )
@@ -247,7 +252,10 @@ class SelectionsTest {
                             _itemReader.readString()
                         })
                         val custom: CustomType.CUSTOM? = _reader.readCustomType(RESPONSE_FIELDS[5] as ResponseField.CustomTypeField)
-                        Data(number, string, unit, heroWithReview, list, custom)
+                        val fragments: Fragments = Utils.checkNotNull(_reader.readConditional(RESPONSE_FIELDS[6], ResponseReader.ConditionalTypeReader<Fragments> { _conditionalType, _reader ->
+                            Fragments.MAPPER.map(_reader, _conditionalType)
+                        }), "fragments == null")
+                        Data(number, string, unit, heroWithReview, list, custom, fragments)
                     }
         """.trimIndent())
     }
@@ -275,6 +283,10 @@ class SelectionsTest {
                         ResponseFieldSpec(
                                 name = "custom",
                                 type = customRef
+                        ),
+                        ResponseFieldSpec(
+                                name = "fragments",
+                                type = fragmentsRef
                         )
                 )
         )
@@ -289,8 +301,67 @@ class SelectionsTest {
                                 list?.forEach { _itemWriter.writeString(it) }
                             })
                             _writer.writeCustom("RESPONSE_FIELDS[4]", CustomType.CUSTOM, custom)
+                            fragments._marshaller.marshal(_writer)
                         }
                     }
+        """.trimIndent())
+    }
+
+    @Test
+    fun `emits fragments type`() {
+        val humanFragmentSpec = FragmentSpec(
+                name = "HumanDetails",
+                source = """
+                    fragment HumanDetails on Human {
+                      name
+                      height
+                    }
+                """.trimIndent(),
+                selections = SelectionSetSpec(fields = listOf(
+                        ResponseFieldSpec(name = "name", type = stringRef),
+                        ResponseFieldSpec(name = "height", type = floatRef)
+                )),
+                typeCondition = TypeRef(name = "Human", kind = TypeKind.OBJECT)
+        )
+
+        val droidFragmentSpec = FragmentSpec(
+                name = "DroidDetails",
+                source = """
+                    fragment DroidDetails on Droid {
+                      name
+                      primaryFunction
+                    }
+                """.trimIndent(),
+                selections = SelectionSetSpec(fields = listOf(
+                        ResponseFieldSpec(name = "name", type = stringRef),
+                        ResponseFieldSpec(name = "primaryFunction", type = stringRef)
+                ))
+        )
+
+        val spec = SelectionSetSpec(fragmentSpreads = listOf(
+                FragmentSpreadSpec(humanFragmentSpec),
+                FragmentSpreadSpec(droidFragmentSpec)
+        ))
+
+        assertThat(spec.fragmentsTypeSpec(ClassName("", "Fragments")).code()).isEqualTo("""
+            data class Fragments(val humanDetails: HumanDetails?, val droidDetails: DroidDetails?) {
+                val _marshaller: ResponseFieldMarshaller by lazy {
+                            ResponseFieldMarshaller { _writer ->
+                                humanDetails?._marshaller.marshal(_writer)
+                                droidDetails?._marshaller.marshal(_writer)
+                            }
+                        }
+
+                companion object {
+                    val MAPPER: FragmentResponseFieldMapper<Fragments> =
+                            FragmentResponseFieldMapper<Fragments> { _reader, _conditionalType ->
+                                Fragments(
+                                    HumanDetails.MAPPER.takeIf (_conditionalType in HumanDetails.POSSIBLE_TYPES)?.map(_reader),
+                                    DroidDetails.MAPPER.takeIf (_conditionalType in DroidDetails.POSSIBLE_TYPES)?.map(_reader)
+                                )
+                            }
+                }
+            }
         """.trimIndent())
     }
 }
