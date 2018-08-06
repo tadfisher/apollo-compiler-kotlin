@@ -1,10 +1,18 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
+buildscript {
+    configurations["classpath"].resolutionStrategy {
+        force("com.github.shyiko:ktlint:0.26.0")
+    }
+}
+
 plugins {
     `java-library`
-    kotlin("jvm") version "1.2.51"
-    kotlin("kapt") version "1.2.51"
+    kotlin("jvm") version "1.2.60"
+    kotlin("kapt") version "1.2.60"
     antlr
+    id("com.github.ben-manes.versions") version "0.20.0"
+    id("org.jmailen.kotlinter") version "1.16.0"
 }
 
 dependencies {
@@ -20,8 +28,8 @@ dependencies {
     implementation("org.antlr:antlr4-runtime:4.7.1")
 
     testImplementation("junit:junit:4.12")
-    testImplementation("com.google.truth:truth:0.30")
-    testImplementation("com.google.testing.compile:compile-testing:0.11")
+    testImplementation("com.google.truth:truth:0.42")
+    testImplementation("com.google.testing.compile:compile-testing:0.15")
 }
 
 repositories {

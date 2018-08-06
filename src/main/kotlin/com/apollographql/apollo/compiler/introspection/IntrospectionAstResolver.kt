@@ -25,9 +25,9 @@ import com.apollographql.apollo.compiler.ast.TypeDefinition
 import com.apollographql.apollo.compiler.ast.UnionTypeDefinition
 
 fun IntrospectionSchema.resolveDocument() = Document(
-        definitions = listOf<Definition>(schemaDefinition())
-                + types.map { it.typeDefinition() }
-                + directives.map { it.directiveDefinition() }
+        definitions = listOf<Definition>(schemaDefinition()) +
+                types.map { it.typeDefinition() } +
+                directives.map { it.directiveDefinition() }
 )
 
 fun IntrospectionSchema.schemaDefinition() = SchemaDefinition(
@@ -128,6 +128,6 @@ fun deprecatedDirective(reason: String?) = Directive(
         name = "deprecated",
         arguments = listOf(Argument(
                 name = "reason",
-                value =  StringValue(reason ?: "No longer supported")
+                value = StringValue(reason ?: "No longer supported")
         ))
 )

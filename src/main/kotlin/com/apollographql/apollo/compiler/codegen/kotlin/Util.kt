@@ -21,7 +21,7 @@ fun TypeSpec.Builder.addGeneratedAnnotation(): TypeSpec.Builder {
 }
 
 fun PropertySpec.Builder.addTransientAnnotation(
-        useSiteTarget: AnnotationSpec.UseSiteTarget
+    useSiteTarget: AnnotationSpec.UseSiteTarget
 ): PropertySpec.Builder {
     return addAnnotation(AnnotationSpec.builder(Transient::class)
             .useSiteTarget(useSiteTarget)
@@ -41,10 +41,10 @@ fun TypeSpec.Builder.addParameterKdoc(parameters: List<PropertyWithDoc>) = apply
 }
 
 fun List<CodeBlock>.join(
-        separator: String = ",%W",
-        prefix: String = "",
-        suffix: String = "",
-        transform: (CodeBlock) -> CodeBlock = { it }
+    separator: String = ",%W",
+    prefix: String = "",
+    suffix: String = "",
+    transform: (CodeBlock) -> CodeBlock = { it }
 ): CodeBlock {
     return CodeBlock.builder()
             .add(prefix)
@@ -59,10 +59,10 @@ fun List<CodeBlock>.join(
 }
 
 fun <T> List<T>.joinToCodeBlock(
-        separator: String = ",%W",
-        prefix: String = "",
-        suffix: String = "",
-        transform: (T) -> CodeBlock = { CodeBlock.of("%L", it) }
+    separator: String = ",%W",
+    prefix: String = "",
+    suffix: String = "",
+    transform: (T) -> CodeBlock = { CodeBlock.of("%L", it) }
 ): CodeBlock = map { transform(it) }.join(separator, prefix, suffix)
 
 fun List<PropertyWithDoc>.parameterKdoc(): CodeBlock {

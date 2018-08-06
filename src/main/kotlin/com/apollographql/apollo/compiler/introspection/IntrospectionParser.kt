@@ -44,14 +44,14 @@ internal data class IntrospectionResult(val data: IntrospectionData)
 internal data class IntrospectionData(val __schema: IntrospectionSchema)
 
 internal data class IntrospectionTypeJson(
-        val kind: TypeKind,
-        val name: String,
-        val description: String?,
-        val fields: List<IntrospectionField>?,
-        val interfaces: List<IntrospectionNamedTypeRef>?,
-        val inputFields: List<IntrospectionInputValue>?,
-        val possibleTypes: List<IntrospectionNamedTypeRef>?,
-        val enumValues: List<IntrospectionEnumValue>?
+    val kind: TypeKind,
+    val name: String,
+    val description: String?,
+    val fields: List<IntrospectionField>?,
+    val interfaces: List<IntrospectionNamedTypeRef>?,
+    val inputFields: List<IntrospectionInputValue>?,
+    val possibleTypes: List<IntrospectionNamedTypeRef>?,
+    val enumValues: List<IntrospectionEnumValue>?
 )
 
 internal object IntrospectionTypeAdapter {
@@ -69,14 +69,14 @@ internal object IntrospectionTypeAdapter {
 
     @Suppress("unused_parameter")
     @ToJson fun toJson(
-            writer: JsonWriter,
-            type: IntrospectionType,
-            scalarAdapter: JsonAdapter<IntrospectionScalarType>,
-            objectAdapter: JsonAdapter<IntrospectionObjectType>,
-            interfaceAdapter: JsonAdapter<IntrospectionInterfaceType>,
-            unionAdapter: JsonAdapter<IntrospectionUnionType>,
-            enumAdapter: JsonAdapter<IntrospectionEnumType>,
-            inputObjectAdapter: JsonAdapter<IntrospectionInputObjectType>
+        writer: JsonWriter,
+        type: IntrospectionType,
+        scalarAdapter: JsonAdapter<IntrospectionScalarType>,
+        objectAdapter: JsonAdapter<IntrospectionObjectType>,
+        interfaceAdapter: JsonAdapter<IntrospectionInterfaceType>,
+        unionAdapter: JsonAdapter<IntrospectionUnionType>,
+        enumAdapter: JsonAdapter<IntrospectionEnumType>,
+        inputObjectAdapter: JsonAdapter<IntrospectionInputObjectType>
     ) {
         when (type) {
             is IntrospectionScalarType -> scalarAdapter.toJson(writer, type)
@@ -90,9 +90,9 @@ internal object IntrospectionTypeAdapter {
 }
 
 internal class IntrospectionTypeRefJson(
-        val kind: TypeKind,
-        val name: String?,
-        val ofType: IntrospectionTypeRef?
+    val kind: TypeKind,
+    val name: String?,
+    val ofType: IntrospectionTypeRef?
 )
 
 internal object IntrospectionTypeRefAdapter {
@@ -105,11 +105,11 @@ internal object IntrospectionTypeRefAdapter {
     }
 
     @ToJson fun toJson(
-            writer: JsonWriter,
-            typeRef: IntrospectionTypeRef,
-            namedAdapter: JsonAdapter<IntrospectionNamedTypeRef>,
-            listAdapter: JsonAdapter<IntrospectionListTypeRef>,
-            nonNullAdapter: JsonAdapter<IntrospectionNonNullTypeRef>
+        writer: JsonWriter,
+        typeRef: IntrospectionTypeRef,
+        namedAdapter: JsonAdapter<IntrospectionNamedTypeRef>,
+        listAdapter: JsonAdapter<IntrospectionListTypeRef>,
+        nonNullAdapter: JsonAdapter<IntrospectionNonNullTypeRef>
     ) {
         when (typeRef) {
             is IntrospectionNamedTypeRef -> namedAdapter.toJson(writer, typeRef)

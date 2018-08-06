@@ -19,7 +19,6 @@ class DocumentIrResolver(val document: Document) {
     private val recursivelyReferencedTypesCache =
             linkedMapOf<OperationDefinition, List<TypeDefinition>>()
 
-
 //    fun resolveExecutableIr(): ExecutableIr {
 //        // Shake the tree
 //        val operations = document.operations
@@ -74,8 +73,6 @@ class DocumentIrResolver(val document: Document) {
 
         return frags.toList()
     }
-
-
 
 //    val separateOperations: Map<String?, Document>
 //        get() = document.operations.mapValues { (_, definition) -> separateOperation(definition) }

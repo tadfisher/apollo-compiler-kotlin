@@ -26,11 +26,11 @@ sealed class IntrospectionTypeRef {
 
 @JsonClass(generateAdapter = true)
 data class IntrospectionSchema(
-        val queryType: IntrospectionNamedTypeRef,
-        val mutationType: IntrospectionNamedTypeRef?,
-        val subscriptionType: IntrospectionNamedTypeRef?,
-        val types: List<IntrospectionType>,
-        val directives: List<IntrospectionDirective>
+    val queryType: IntrospectionNamedTypeRef,
+    val mutationType: IntrospectionNamedTypeRef?,
+    val subscriptionType: IntrospectionNamedTypeRef?,
+    val types: List<IntrospectionType>,
+    val directives: List<IntrospectionDirective>
 )
 
 @JsonClass(generateAdapter = true)

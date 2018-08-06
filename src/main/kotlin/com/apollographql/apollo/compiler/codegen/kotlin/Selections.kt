@@ -27,8 +27,8 @@ fun SelectionSetSpec.typeSpecs(): List<TypeSpec> {
 
 fun SelectionSetSpec.dataClassSpec(name: ClassName): TypeSpec {
     fun defaultTypenameConstructor(
-            fields: List<ResponseFieldSpec>,
-            maybeOptional: Boolean
+        fields: List<ResponseFieldSpec>,
+        maybeOptional: Boolean
     ): FunSpec {
         val otherFields = fields.filterNot { it.name == Selections.typenameField }
         return FunSpec.constructorBuilder()
@@ -52,7 +52,7 @@ fun SelectionSetSpec.dataClassSpec(name: ClassName): TypeSpec {
     val hasOptionalTypes = optionalTypes.any { it != null }
     val hasTypenameField = fields.any { it.name == Selections.typenameField }
 
-    return with (TypeSpec.classBuilder(name)) {
+    return with(TypeSpec.classBuilder(name)) {
         addModifiers(KModifier.DATA)
         addProperties(fields.map { it.propertySpec() })
         addProperty(responseMarshallerPropertySpec())
@@ -81,7 +81,7 @@ fun SelectionSetSpec.dataClassSpec(name: ClassName): TypeSpec {
                 build()
             })
         } else {
-            primaryConstructor(with (FunSpec.constructorBuilder()) {
+            primaryConstructor(with(FunSpec.constructorBuilder()) {
                 addParameters(fields.map { it.constructorParameterSpec(maybeOptional = true) })
                 build()
             })
@@ -176,7 +176,7 @@ fun SelectionSetSpec.fragmentsTypeSpec(): TypeSpec {
             fragmentSpreads.joinToCodeBlock(",\n") { it.readValueCode() }
     )
 
-    return with (TypeSpec.classBuilder(className)) {
+    return with(TypeSpec.classBuilder(className)) {
         addModifiers(KModifier.DATA)
 
         if (hasOptionalTypes) {
@@ -223,7 +223,10 @@ fun SelectionSetSpec.fragmentsTypeSpec(): TypeSpec {
 }
 
 fun FragmentSpreadSpec.constructorParameterSpec(maybeOptional: Boolean): ParameterSpec {
-    return ParameterSpec.builder(propertyName, fragmentTypeName(maybeOptional)).build()
+    val fragmentType = fragmentTypeName(maybeOptional).let {
+        if (isOptional && !maybeOptional) it.asNullable() else it
+    }
+    return ParameterSpec.builder(propertyName, fragmentType).build()
 }
 
 fun FragmentSpreadSpec.propertySpec(): PropertySpec {
@@ -233,10 +236,11 @@ fun FragmentSpreadSpec.propertySpec(): PropertySpec {
 }
 
 fun FragmentSpreadSpec.fragmentTypeName(maybeOptional: Boolean): TypeName {
-    return if (maybeOptional && optionalType != null) {
-        optionalType.asClassName().parameterizedBy(fragment.className())
+    return if (maybeOptional && isOptional) {
+        optionalType?.asClassName()?.parameterizedBy(fragment.className())
+                ?: fragment.className().asNullable()
     } else {
-        fragment.className().asNullable()
+        fragment.className()
     }
 }
 

@@ -17,8 +17,8 @@ interface DocumentSource {
 }
 
 class FileDocumentSource(
-        override val id: String = UUID.randomUUID().toString(),
-        private val source: File
+    override val id: String = UUID.randomUUID().toString(),
+    private val source: File
 ) : DocumentSource {
     override val mapper by lazy { DefaultSourceMapper(id, this) }
 
@@ -34,8 +34,8 @@ class FileDocumentSource(
 }
 
 class StringDocumentSource(
-        override val id: String = UUID.randomUUID().toString(),
-        private val source: String
+    override val id: String = UUID.randomUUID().toString(),
+    private val source: String
 ) : DocumentSource {
     override val mapper by lazy { DefaultSourceMapper(id, this) }
 

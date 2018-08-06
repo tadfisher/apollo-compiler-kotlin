@@ -44,5 +44,5 @@ fun ListValue.valueCode(): CodeBlock {
 }
 
 fun ObjectValue.valueCode() = CodeBlock.of("%L", fields.map {
-    CodeBlock.of("%L = %L", it.name, it.value.valueCode() )
+    CodeBlock.of("%L = %L", it.name, it.value.valueCode())
 }.join("\n"))

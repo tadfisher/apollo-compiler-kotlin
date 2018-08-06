@@ -56,8 +56,8 @@ import java.math.BigInteger
 import com.apollographql.apollo.compiler.ast.StringValue as StringValueAst
 
 class DocumentParser(
-        private val source: DocumentSource,
-        private val withAstLocation: Boolean = false
+    private val source: DocumentSource,
+    private val withAstLocation: Boolean = false
 ) : GraphqlParser(CommonTokenStream(GraphqlLexer(source.charStream()))) {
 
     private val ParserRuleContext.astLocation: AstLocation? get() {
@@ -440,8 +440,8 @@ class DocumentParser(
 
     fun DirectiveLocationsContext.toAst(): Set<DirectiveLocation> {
         tailrec fun loop(
-                ctx: DirectiveLocationsContext,
-                res: Set<DirectiveLocation> = emptySet()
+            ctx: DirectiveLocationsContext,
+            res: Set<DirectiveLocation> = emptySet()
         ): Set<DirectiveLocation> {
             val newRes = res + ctx.directiveLocation().toAst()
             val next = ctx.directiveLocations()
@@ -458,5 +458,4 @@ class DocumentParser(
     fun ExecutableDirectiveLocationContext.toAst() = DirectiveLocation.valueOf(text)
 
     fun TypeSystemDirectiveLocationContext.toAst() = DirectiveLocation.valueOf(text)
-
 }

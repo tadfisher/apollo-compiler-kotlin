@@ -10,8 +10,8 @@ interface SourceMapper {
 }
 
 class DefaultSourceMapper(
-        override val id: String,
-        val documentSource: DocumentSource
+    override val id: String,
+    val documentSource: DocumentSource
 ) : SourceMapper {
     override val source by lazy { documentSource.fullText() }
 
@@ -25,8 +25,8 @@ class DefaultSourceMapper(
 }
 
 class AggregateSourceMapper(
-        override val id: String,
-        val delegates: List<SourceMapper>
+    override val id: String,
+    val delegates: List<SourceMapper>
 ) : SourceMapper {
     override val source by lazy { delegates.joinToString("\n\n") { it.source.trim() } }
 

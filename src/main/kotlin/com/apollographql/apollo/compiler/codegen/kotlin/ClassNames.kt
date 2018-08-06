@@ -6,6 +6,7 @@ import com.apollographql.apollo.api.InputFieldMarshaller
 import com.apollographql.apollo.api.InputFieldWriter
 import com.apollographql.apollo.api.Operation
 import com.apollographql.apollo.api.OperationName
+import com.apollographql.apollo.api.ResponseField
 import com.apollographql.apollo.api.ResponseFieldMapper
 import com.apollographql.apollo.api.ResponseFieldMarshaller
 import com.apollographql.apollo.api.ResponseReader
@@ -29,6 +30,7 @@ object ClassNames {
     val OPERATION_VARIABLES = Operation.Variables::class.asClassName()
     val OPERATION_NAME = OperationName::class.asClassName()
 
+    val RESPONSE_FIELD = ResponseField::class.asClassName()
     val RESPONSE_MAPPER = ResponseFieldMapper::class.asClassName()
     val RESPONSE_OBJECT_READER = ResponseReader.ObjectReader::class.asClassName()
     val RESPONSE_LIST_READER = ResponseReader.ListReader::class.asClassName()

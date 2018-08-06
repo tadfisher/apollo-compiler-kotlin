@@ -16,34 +16,34 @@ import com.squareup.kotlinpoet.TypeSpec
 fun FragmentSpec.typeSpec(): TypeSpec {
 
     val fragmentDefinition =
-            PropertySpec.builder(Fragments.fragmentDefinitionProp, STRING)
-                    .addModifiers(KModifier.CONST)
-                    .initializer("%S", source)
-                    .build()
+        PropertySpec.builder(Fragments.fragmentDefinitionProp, STRING)
+            .addModifiers(KModifier.CONST)
+            .initializer("%S", source)
+            .build()
 
     val possibleTypes =
-            PropertySpec.builder(Fragments.possibleTypesProp, LIST.parameterizedBy(STRING))
-                    .initializer("listOf(%L)", possibleTypes.joinToCodeBlock {
-                        CodeBlock.of("%S", it)
-                    })
-                    .build()
+        PropertySpec.builder(Fragments.possibleTypesProp, LIST.parameterizedBy(STRING))
+            .initializer("listOf(%L)", possibleTypes.joinToCodeBlock {
+                CodeBlock.of("%S", it)
+            })
+            .build()
 
-    return with (selections.dataClassSpec(className()).toBuilder()) {
+    return with(selections.dataClassSpec(className()).toBuilder()) {
         addGeneratedAnnotation()
 
         addSuperinterface(GraphqlFragment::class)
 
         typeSpecs.update({ it.isCompanion }) { it.toBuilder()
-                .addProperty(fragmentDefinition)
-                .addProperty(possibleTypes)
-                .build()
+            .addProperty(fragmentDefinition)
+            .addProperty(possibleTypes)
+            .build()
         }
 
         addFunction(FunSpec.builder(Fragments.typenameFun)
-                .addModifiers(KModifier.OVERRIDE)
-                .returns(STRING)
-                .addCode("return %L\n", Selections.typenameField)
-                .build())
+            .addModifiers(KModifier.OVERRIDE)
+            .returns(STRING)
+            .addCode("return %L\n", Selections.typenameField)
+            .build())
 
         addTypes(selections.typeSpecs())
 

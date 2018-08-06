@@ -24,38 +24,38 @@ import com.squareup.kotlinpoet.WildcardTypeName
 
 fun InputObjectTypeSpec.typeSpec(className: ClassName): TypeSpec {
     val marshallerPropertySpec =
-            PropertySpec.builder(Selections.marshallerProperty, INPUT_FIELD_MARSHALLER)
-                    .addModifiers(KModifier.INTERNAL)
-                    .addAnnotation(AnnotationSpec.builder(Transient::class)
-                            .useSiteTarget(AnnotationSpec.UseSiteTarget.DELEGATE)
-                            .build())
-                    .delegate(CodeBlock.of("""
+        PropertySpec.builder(Selections.marshallerProperty, INPUT_FIELD_MARSHALLER)
+            .addModifiers(KModifier.INTERNAL)
+            .addAnnotation(AnnotationSpec.builder(Transient::class)
+                .useSiteTarget(AnnotationSpec.UseSiteTarget.DELEGATE)
+                .build())
+            .delegate(CodeBlock.of("""
                             lazy {
                             %>%T { %L ->
                             %>%L
                             %<}
                             %<}
                         """.trimIndent(), INPUT_FIELD_MARSHALLER, Types.defaultWriterParam,
-                            values.map {
-                                it.type.writeInputFieldValueCode(it.name, it.propertyName)
-                            }.join("\n")))
-                    .build()
+                values.map {
+                    it.type.writeInputFieldValueCode(it.name, it.propertyName)
+                }.join("\n")))
+            .build()
 
     return TypeSpec.classBuilder(className)
-            .addGeneratedAnnotation()
-            .addParameterKdoc(values)
-            .addModifiers(KModifier.DATA)
-            .primaryConstructor(FunSpec.constructorBuilder()
-                    .addParameters(values.map { it.constructorParameterSpec() })
-                    .build())
-            .addProperties(values.map { it.propertySpec() })
-            .addProperty(marshallerPropertySpec)
-            .build()
+        .addGeneratedAnnotation()
+        .addParameterKdoc(values)
+        .addModifiers(KModifier.DATA)
+        .primaryConstructor(FunSpec.constructorBuilder()
+            .addParameters(values.map { it.constructorParameterSpec() })
+            .build())
+        .addProperties(values.map { it.propertySpec() })
+        .addProperty(marshallerPropertySpec)
+        .build()
 }
 
 fun InputValueSpec.constructorParameterSpec(): ParameterSpec {
     val typeName = type.typeName()
-    return with (ParameterSpec.builder(propertyName, typeName)) {
+    return with(ParameterSpec.builder(propertyName, typeName)) {
         // TODO support default values for custom types
         if (defaultValue != null && !type.isCustom) {
             defaultValue(type.initializerCode(defaultValue))
@@ -68,17 +68,17 @@ fun InputValueSpec.constructorParameterSpec(): ParameterSpec {
 
 fun InputValueSpec.propertySpec(): PropertySpec {
     return PropertySpec.builder(propertyName, type.typeName())
-            .initializer(propertyName)
-            .build()
+        .initializer(propertyName)
+        .build()
 }
 
 fun EnumTypeSpec.typeSpec(className: ClassName): TypeSpec {
     val safeValueOf = FunSpec.builder(InputTypes.enumSafeValueOfFun)
-            .addParameter(InputTypes.enumRawValueProp, STRING)
-            .addCode(CodeBlock.of("return %T.values().find { it.%L == %L } ?: %T.%L\n",
-                    className, InputTypes.enumRawValueProp, InputTypes.enumRawValueProp,
-                    className, unknownValue.propertyName))
-            .build()
+        .addParameter(InputTypes.enumRawValueProp, STRING)
+        .addCode(CodeBlock.of("return %T.values().find { it.%L == %L } ?: %T.%L\n",
+            className, InputTypes.enumRawValueProp, InputTypes.enumRawValueProp,
+            className, unknownValue.propertyName))
+        .build()
 
     return with(TypeSpec.enumBuilder(className)) {
         if (doc.isNotEmpty()) {
@@ -94,23 +94,23 @@ fun EnumTypeSpec.typeSpec(className: ClassName): TypeSpec {
         addEnumConstant(unknownValue.propertyName, unknownValue.enumConstantSpec())
 
         primaryConstructor(FunSpec.constructorBuilder()
-                .addParameter(InputTypes.enumRawValueProp, STRING)
-                .build())
+            .addParameter(InputTypes.enumRawValueProp, STRING)
+            .build())
 
         addProperty(PropertySpec.builder(InputTypes.enumRawValueProp, STRING)
-                .initializer(InputTypes.enumRawValueProp)
-                .build())
+            .initializer(InputTypes.enumRawValueProp)
+            .build())
 
         addType(TypeSpec.companionObjectBuilder()
-                .addFunction(safeValueOf)
-                .build())
+            .addFunction(safeValueOf)
+            .build())
 
         build()
     }
 }
 
 fun EnumValueSpec.enumConstantSpec(): TypeSpec {
-    return with (TypeSpec.anonymousClassBuilder()) {
+    return with(TypeSpec.anonymousClassBuilder()) {
         if (doc.isNotEmpty()) addKdoc("%L\n", doc)
 
         if (deprecationReason != null) {
@@ -124,7 +124,7 @@ fun EnumValueSpec.enumConstantSpec(): TypeSpec {
 }
 
 fun CustomTypesSpec.typeSpec(): TypeSpec {
-    return with (TypeSpec.enumBuilder(InputTypes.customTypesEnum)) {
+    return with(TypeSpec.enumBuilder(InputTypes.customTypesEnum)) {
         addGeneratedAnnotation()
 
         addSuperinterface(ScalarType::class)
@@ -139,17 +139,17 @@ fun CustomTypesSpec.typeSpec(): TypeSpec {
 
 fun ScalarTypeSpec.enumConstantSpec(): TypeSpec {
     return TypeSpec.anonymousClassBuilder()
-            .addFunction(FunSpec.builder("typeName")
-                    .addModifiers(KModifier.OVERRIDE)
-                    .returns(STRING)
-                    .addCode("return %S\n", type.name)
-                    .build())
-            .addFunction(FunSpec.builder("javaType")
-                    .addModifiers(KModifier.OVERRIDE)
-                    .returns(CLASS.parameterizedBy(WildcardTypeName.STAR))
-                    .addCode("return %T::class.java\n", type.typeName(false))
-                    .build())
-            .build()
+        .addFunction(FunSpec.builder("typeName")
+            .addModifiers(KModifier.OVERRIDE)
+            .returns(STRING)
+            .addCode("return %S\n", type.name)
+            .build())
+        .addFunction(FunSpec.builder("javaType")
+            .addModifiers(KModifier.OVERRIDE)
+            .returns(CLASS.parameterizedBy(WildcardTypeName.STAR))
+            .addCode("return %T::class.java\n", type.typeName(false))
+            .build())
+        .build()
 }
 
 object InputTypes {

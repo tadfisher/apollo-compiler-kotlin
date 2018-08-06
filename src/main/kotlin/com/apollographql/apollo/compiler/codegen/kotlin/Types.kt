@@ -55,13 +55,13 @@ fun TypeRef.initializerCode(initialValue: Value): CodeBlock {
 }
 
 fun TypeRef.readResponseFieldValueCode(
-        varName: String,
-        propertyName: String
+    varName: String,
+    propertyName: String
 ): CodeBlock = wrapNullCheck(readValueCode(varName), propertyName)
 
 fun TypeRef.readValueCode(
-        varName: String,
-        readerParam: String = Types.defaultReaderParam
+    varName: String,
+    readerParam: String = Types.defaultReaderParam
 ): CodeBlock {
     return when (kind) {
         TypeKind.STRING,
@@ -74,7 +74,7 @@ fun TypeRef.readValueCode(
         TypeKind.LIST -> readListCode(varName, readerParam)
         TypeKind.CUSTOM -> readCustomCode(varName, readerParam)
         TypeKind.FRAGMENT -> readFragmentsCode(varName, readerParam)
-        TypeKind.INLINE_FRAGMENT -> TODO()
+        TypeKind.INLINE_FRAGMENT -> readInlineFragmentCode(varName, readerParam)
     }
 }
 
@@ -83,8 +83,8 @@ fun TypeRef.readScalarCode(varName: String, readerParam: String): CodeBlock {
 }
 
 fun TypeRef.readEnumCode(
-        varName: String,
-        readerParam: String
+    varName: String,
+    readerParam: String
 ): CodeBlock {
     return CodeBlock.of("""
         %L.%L(%L)?.let {
@@ -95,8 +95,8 @@ fun TypeRef.readEnumCode(
 }
 
 fun TypeRef.readObjectCode(
-        varName: String,
-        readerParam: String
+    varName: String,
+    readerParam: String
 ): CodeBlock {
     val typeName = typeName(false)
     val readerLambda = CodeBlock.of("""
@@ -110,8 +110,8 @@ fun TypeRef.readObjectCode(
 }
 
 fun TypeRef.readListCode(
-        varName: String,
-        readerParam: String
+    varName: String,
+    readerParam: String
 ): CodeBlock {
     val typeName = typeName(false)
     val fieldType = parameters[0]
@@ -196,13 +196,27 @@ fun TypeRef.readFragmentsCode(varName: String, readerParam: String): CodeBlock {
             Types.conditionalTypeParam
     )
 
-    return CodeBlock.of("%L.%L(%L, %L)",
-            readerParam, kind.readMethod, varName, readerLambda)
+    return CodeBlock.of("%L.%L(%L, %L)", readerParam, kind.readMethod, varName, readerLambda)
+}
+
+fun TypeRef.readInlineFragmentCode(varName: String, readerParam: String): CodeBlock {
+    val concreteType = ClassName.bestGuess(jvmName)
+
+    val readerLambda = CodeBlock.of("""
+        %T { %L, %L ->
+        %>%T.%L.map(%L)
+        %<}
+    """.trimIndent(),
+            RESPONSE_CONDITIONAL_READER.parameterizedBy(concreteType),
+            Types.conditionalTypeParam, Types.defaultReaderParam,
+            concreteType, Selections.mapperProperty, Types.defaultReaderParam)
+
+    return CodeBlock.of("%L.%L(%L, %L)", readerParam, kind.readMethod, varName, readerLambda)
 }
 
 fun TypeRef.writeInputFieldValueCode(
-        varName: String,
-        propertyName: String = varName
+    varName: String,
+    propertyName: String = varName
 ): CodeBlock {
     return writeValueCode(varName, propertyName, listWriterType = INPUT_FIELD_LIST_WRITER).let {
         if (isOptional) {
@@ -218,8 +232,8 @@ fun TypeRef.writeInputFieldValueCode(
 }
 
 fun TypeRef.writeResponseFieldValueCode(
-        varName: String,
-        propertyName: String
+    varName: String,
+    propertyName: String
 ): CodeBlock {
     return writeValueCode(
             varName = varName,
@@ -229,11 +243,11 @@ fun TypeRef.writeResponseFieldValueCode(
 }
 
 fun TypeRef.writeValueCode(
-        varName: String,
-        propertyName: String = varName,
-        writerParam: String = Types.defaultWriterParam,
-        itemWriterParam: String = Types.defaultItemWriterParam,
-        listWriterType: ClassName
+    varName: String,
+    propertyName: String = varName,
+    writerParam: String = Types.defaultWriterParam,
+    itemWriterParam: String = Types.defaultItemWriterParam,
+    listWriterType: ClassName
 ): CodeBlock {
     return when (kind) {
         TypeKind.STRING,
@@ -246,14 +260,14 @@ fun TypeRef.writeValueCode(
         TypeKind.LIST ->
             writeListCode(varName, propertyName, writerParam, itemWriterParam, listWriterType)
         TypeKind.CUSTOM -> writeCustomCode(varName, propertyName, writerParam)
-        TypeKind.FRAGMENT -> writeFragmentsCode(propertyName, writerParam)
+        TypeKind.FRAGMENT -> writeFragmentCode(propertyName, writerParam)
         TypeKind.INLINE_FRAGMENT -> TODO()
-    }}
+    } }
 
 fun TypeRef.writeScalarCode(
-        varName: String,
-        propertyName: String,
-        writerParam: String
+    varName: String,
+    propertyName: String,
+    writerParam: String
 ): CodeBlock {
     val typeName = typeName()
     val valueCode = typeName.unwrapOptionalValue(propertyName, false)
@@ -261,9 +275,9 @@ fun TypeRef.writeScalarCode(
 }
 
 fun TypeRef.writeEnumCode(
-        varName: String,
-        propertyName: String,
-        writerParam: String
+    varName: String,
+    propertyName: String,
+    writerParam: String
 ): CodeBlock {
     val typeName = typeName()
     val valueCode = typeName.unwrapOptionalValue(propertyName) {
@@ -273,9 +287,9 @@ fun TypeRef.writeEnumCode(
 }
 
 fun TypeRef.writeObjectCode(
-        varName: String,
-        propertyName: String,
-        writerParam: String
+    varName: String,
+    propertyName: String,
+    writerParam: String
 ): CodeBlock {
     val typeName = typeName()
     val valueCode = typeName.unwrapOptionalValue(propertyName) {
@@ -285,11 +299,11 @@ fun TypeRef.writeObjectCode(
 }
 
 fun TypeRef.writeListCode(
-        varName: String,
-        propertyName: String,
-        writerParam: String,
-        itemWriterParam: String,
-        listWriterType: ClassName
+    varName: String,
+    propertyName: String,
+    writerParam: String,
+    itemWriterParam: String,
+    listWriterType: ClassName
 ): CodeBlock {
     val typeName = typeName()
     val unwrappedListValue = typeName.unwrapOptionalValue(propertyName)
@@ -302,9 +316,9 @@ fun TypeRef.writeListCode(
 }
 
 fun TypeRef.listWriter(
-        listParam: CodeBlock,
-        itemWriterParam: String,
-        listWriterType: ClassName
+    listParam: CodeBlock,
+    itemWriterParam: String,
+    listWriterType: ClassName
 ): CodeBlock {
     return CodeBlock.of("""
         %T { %L ->
@@ -317,8 +331,8 @@ fun TypeRef.listWriter(
 }
 
 fun TypeRef.writeListItemCode(
-        itemWriterParam: String,
-        listWriterType: ClassName
+    itemWriterParam: String,
+    listWriterType: ClassName
 ): CodeBlock {
     fun writeList(): CodeBlock {
         val nestedListItemParamType = if (kind == TypeKind.LIST) parameters.first() else this
@@ -366,9 +380,9 @@ fun TypeRef.writeListItemCode(
 }
 
 fun TypeRef.writeCustomCode(
-        varName: String,
-        propertyName: String,
-        writerParam: String
+    varName: String,
+    propertyName: String,
+    writerParam: String
 ): CodeBlock {
     val typeName = typeName()
     val valueCode = typeName.unwrapOptionalValue(propertyName, false)
@@ -376,9 +390,9 @@ fun TypeRef.writeCustomCode(
             writerParam, kind.writeMethod, varName, ClassName.bestGuess(name), valueCode)
 }
 
-fun TypeRef.writeFragmentsCode(
-        propertyName: String,
-        writerParam: String
+fun writeFragmentCode(
+    propertyName: String,
+    writerParam: String
 ): CodeBlock {
     return CodeBlock.of("%L.%L.marshal(%L)",
             propertyName, Selections.marshallerProperty, writerParam)
@@ -394,9 +408,9 @@ fun TypeName.isOptional(expectedOptionalType: ClassName? = null): Boolean {
 }
 
 fun TypeName.unwrapOptionalValue(
-        varName: String,
-        checkIfPresent : Boolean = true,
-        transformation: ((CodeBlock) -> CodeBlock) = { it }
+    varName: String,
+    checkIfPresent: Boolean = true,
+    transformation: ((CodeBlock) -> CodeBlock) = { it }
 ): CodeBlock {
     return if (isOptional() && this is ParameterizedTypeName) {
         if (rawType == INPUT_OPTIONAL) {
@@ -434,7 +448,6 @@ fun TypeName.wrapOptionalValue(value: CodeBlock): CodeBlock {
 fun TypeName.wrapOptionalValue(value: String): CodeBlock {
     return wrapOptionalValue(CodeBlock.of("%L", value))
 }
-
 
 fun TypeName.defaultOptionalValue(): CodeBlock {
     return if (isOptional() && this is ParameterizedTypeName) {
