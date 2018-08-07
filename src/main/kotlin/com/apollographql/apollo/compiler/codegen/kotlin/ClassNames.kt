@@ -22,7 +22,10 @@ object ClassNames {
     val JAVA_OPTIONAL = ClassName("java.util", "Optional")
     val INPUT_OPTIONAL = Input::class.asClassName()
 
+    val INT = Int::class.asClassName()
+    val DOUBLE = Double::class.asClassName()
     val STRING = String::class.asClassName()
+    val BOOLEAN = Boolean::class.asClassName()
     val LIST = List::class.asClassName()
     val CLASS = Class::class.asClassName()
 

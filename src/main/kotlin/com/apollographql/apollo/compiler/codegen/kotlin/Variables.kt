@@ -6,8 +6,7 @@ import com.squareup.kotlinpoet.ParameterSpec
 import com.squareup.kotlinpoet.PropertySpec
 
 fun VariableSpec.operationParameterSpec(): ParameterSpec {
-    val typeName = type.typeName()
-    return ParameterSpec.builder(propertyName, typeName)
+    return ParameterSpec.builder(propertyName, type.kotlin())
             .apply {
                 if (defaultValue != null) {
                     defaultValue(type.initializerCode(defaultValue))
@@ -17,13 +16,11 @@ fun VariableSpec.operationParameterSpec(): ParameterSpec {
 }
 
 fun VariableSpec.variablesParameterSpec(): ParameterSpec {
-    val typeName = type.typeName()
-    return ParameterSpec.builder(propertyName, typeName).build()
+    return ParameterSpec.builder(propertyName, type.kotlin()).build()
 }
 
 fun VariableSpec.propertySpec(): PropertySpec {
-    val typeName = type.typeName()
-    return PropertySpec.builder(propertyName, typeName)
+    return PropertySpec.builder(propertyName, type.kotlin())
             .initializer(propertyName)
             .build()
 }

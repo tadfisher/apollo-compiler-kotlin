@@ -4,101 +4,182 @@ import com.apollographql.apollo.api.ResponseField
 import com.apollographql.apollo.compiler.ast.EnumValue
 import com.apollographql.apollo.compiler.ast.ObjectValue
 import com.apollographql.apollo.compiler.ast.Value
-import com.apollographql.apollo.compiler.codegen.kotlin.ClassNames.APOLLO_OPTIONAL
-import com.apollographql.apollo.compiler.codegen.kotlin.ClassNames.APOLLO_UTILS
-import com.apollographql.apollo.compiler.codegen.kotlin.ClassNames.GUAVA_OPTIONAL
 import com.apollographql.apollo.compiler.codegen.kotlin.ClassNames.INPUT_FIELD_LIST_WRITER
-import com.apollographql.apollo.compiler.codegen.kotlin.ClassNames.INPUT_OPTIONAL
-import com.apollographql.apollo.compiler.codegen.kotlin.ClassNames.JAVA_OPTIONAL
 import com.apollographql.apollo.compiler.codegen.kotlin.ClassNames.RESPONSE_CONDITIONAL_READER
 import com.apollographql.apollo.compiler.codegen.kotlin.ClassNames.RESPONSE_LIST_READER
 import com.apollographql.apollo.compiler.codegen.kotlin.ClassNames.RESPONSE_LIST_WRITER
 import com.apollographql.apollo.compiler.codegen.kotlin.ClassNames.RESPONSE_OBJECT_READER
-import com.apollographql.apollo.compiler.ir.TypeKind
+import com.apollographql.apollo.compiler.ir.BuiltinType
+import com.apollographql.apollo.compiler.ir.BuiltinTypeRef
+import com.apollographql.apollo.compiler.ir.CustomTypeRef
+import com.apollographql.apollo.compiler.ir.EnumTypeRef
+import com.apollographql.apollo.compiler.ir.FragmentTypeRef
+import com.apollographql.apollo.compiler.ir.FragmentsWrapperTypeRef
+import com.apollographql.apollo.compiler.ir.InlineFragmentTypeRef
+import com.apollographql.apollo.compiler.ir.JavaTypeName
+import com.apollographql.apollo.compiler.ir.ListTypeRef
+import com.apollographql.apollo.compiler.ir.ObjectTypeRef
+import com.apollographql.apollo.compiler.ir.OptionalType
 import com.apollographql.apollo.compiler.ir.TypeRef
 import com.squareup.kotlinpoet.ClassName
 import com.squareup.kotlinpoet.CodeBlock
-import com.squareup.kotlinpoet.ParameterizedTypeName
 import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import com.squareup.kotlinpoet.TypeName
-import com.squareup.kotlinpoet.asClassName
 
-fun TypeRef.typeName(maybeOptional: Boolean = true): TypeName {
-    val rawType = ClassName.bestGuess(jvmName)
-    val typeName = if (parameters.isNotEmpty()) {
-        rawType.parameterizedBy(
-                *(parameters.map { it.typeName() }.toTypedArray())
-        )
-    } else {
-        rawType
+fun JavaTypeName.kotlin(): ClassName {
+    val simpleNames = typeName.split(".")
+    return ClassName(packageName, simpleNames[0], *simpleNames.drop(1).toTypedArray())
+}
+
+fun TypeRef.kotlin(): TypeName {
+    return when (this) {
+        is BuiltinTypeRef -> when (kind) {
+            BuiltinType.INT -> ClassNames.INT
+            BuiltinType.FLOAT -> ClassNames.DOUBLE
+            BuiltinType.STRING -> ClassNames.STRING
+            BuiltinType.BOOLEAN -> ClassNames.BOOLEAN
+            BuiltinType.ID -> ClassNames.STRING
+        }
+        is EnumTypeRef -> spec.javaType.kotlin()
+        is ObjectTypeRef -> javaType.kotlin()
+        is ListTypeRef -> ClassNames.LIST.parameterizedBy(ofType.kotlin())
+        is CustomTypeRef -> javaType.kotlin()
+        is FragmentsWrapperTypeRef -> ClassName("", name)
+        is FragmentTypeRef -> spec.javaType.kotlin()
+        is InlineFragmentTypeRef -> ClassName("", name)
+    }.let {
+        optional.wrap(it)
     }
+}
 
-    return if (maybeOptional && isOptional) {
-        optionalType?.asClassName()?.parameterizedBy(typeName) ?: typeName.asNullable()
-    } else {
-        typeName
+fun OptionalType.kotlin(): ClassName {
+    return when (this) {
+        OptionalType.NONNULL -> throw UnsupportedOperationException()
+        OptionalType.NULLABLE -> throw UnsupportedOperationException()
+        OptionalType.INPUT -> ClassNames.INPUT_OPTIONAL
+        OptionalType.APOLLO -> ClassNames.APOLLO_OPTIONAL
+        OptionalType.JAVA -> ClassNames.JAVA_OPTIONAL
+        OptionalType.GUAVA -> ClassNames.GUAVA_OPTIONAL
+    }
+}
+
+fun OptionalType.wrap(typeName: TypeName): TypeName {
+    return when (this) {
+        OptionalType.NONNULL -> typeName.asNonNullable()
+        OptionalType.NULLABLE -> typeName.asNullable()
+        OptionalType.INPUT,
+        OptionalType.APOLLO,
+        OptionalType.JAVA,
+        OptionalType.GUAVA -> kotlin().parameterizedBy(typeName)
+    }
+}
+
+fun OptionalType.fromValue(code: CodeBlock): CodeBlock {
+    return when (this) {
+        OptionalType.NONNULL,
+        OptionalType.NULLABLE -> code
+        OptionalType.INPUT,
+        OptionalType.APOLLO,
+        OptionalType.JAVA,
+        OptionalType.GUAVA -> CodeBlock.of("%T.fromNullable(%L)", kotlin(), code)
+    }
+}
+
+fun OptionalType.toValue(code: CodeBlock): CodeBlock {
+    return when (this) {
+        OptionalType.NONNULL,
+        OptionalType.NULLABLE -> code
+        OptionalType.INPUT -> CodeBlock.of("%L.value", code)
+        OptionalType.APOLLO,
+        OptionalType.JAVA,
+        OptionalType.GUAVA -> CodeBlock.of("%L.get()", code)
+    }
+}
+
+fun OptionalType.toReceiver(code: CodeBlock): CodeBlock {
+    return when (this) {
+        OptionalType.NONNULL -> code
+        OptionalType.NULLABLE,
+        OptionalType.INPUT -> CodeBlock.of("%L?", toValue(code))
+        OptionalType.APOLLO,
+        OptionalType.JAVA,
+        OptionalType.GUAVA -> CodeBlock.of("%L.takeIf { it.isPresent() }?.get()?", code)
+    }
+}
+
+fun OptionalType.emptyValue(): CodeBlock {
+    return when (this) {
+        OptionalType.NONNULL -> CodeBlock.of("")
+        OptionalType.NULLABLE -> CodeBlock.of("null")
+        OptionalType.INPUT,
+        OptionalType.APOLLO,
+        OptionalType.GUAVA -> CodeBlock.of("%T.absent()", kotlin())
+        OptionalType.JAVA -> CodeBlock.of("%T.empty()", kotlin())
+    }
+}
+
+fun OptionalType.checkNotNull(code: CodeBlock, propertyName: String): CodeBlock {
+    return when (this) {
+        OptionalType.NONNULL ->
+            CodeBlock.of("%T.checkNotNull(%L, %S)", ClassNames.APOLLO_UTILS, code, "$propertyName == null")
+        else -> code
     }
 }
 
 fun TypeRef.initializerCode(initialValue: Value): CodeBlock {
-    val valueCode = when (initialValue) {
-        is EnumValue -> CodeBlock.of("%T.%L", typeName(false), initialValue.valueCode())
-        is ObjectValue ->
-            CodeBlock.of("%T(%L)", typeName(false), initialValue.valueCode())
+    return when (initialValue) {
+        is EnumValue -> CodeBlock.of("%T.%L", required().kotlin(), initialValue.valueCode())
+        is ObjectValue -> CodeBlock.of("%T(%L)", required().kotlin(), initialValue.valueCode())
         else -> initialValue.valueCode()
+    }.let { optional.fromValue(it) }
+}
+
+val TypeRef.readMethod get() = when (this) {
+    is BuiltinTypeRef -> when (kind) {
+        BuiltinType.INT -> "readInt"
+        BuiltinType.FLOAT -> "readDouble"
+        BuiltinType.STRING -> "readString"
+        BuiltinType.BOOLEAN -> "readBoolean"
+        BuiltinType.ID -> "readString"
     }
-    return if (isOptional && optionalType != null) {
-        typeName(true).wrapOptionalValue(valueCode)
-    } else {
-        valueCode
+    is EnumTypeRef -> "readString"
+    is ObjectTypeRef -> "readObject"
+    is ListTypeRef -> "readList"
+    is CustomTypeRef -> "readCustomType"
+    is FragmentsWrapperTypeRef -> "readConditional"
+    is FragmentTypeRef -> "readConditional"
+    is InlineFragmentTypeRef -> "readConditional"
+}
+
+fun TypeRef.readResponseFieldValueCode(varName: String, propertyName: String) =
+    optional.checkNotNull(readValueCode(varName), propertyName)
+
+fun TypeRef.readValueCode(varName: String, readerParam: String = Types.defaultReaderParam): CodeBlock {
+    return when (this) {
+        is BuiltinTypeRef -> readValueCode(varName, readerParam)
+        is EnumTypeRef -> readValueCode(varName, readerParam)
+        is ObjectTypeRef -> readValueCode(varName, readerParam)
+        is ListTypeRef -> readValueCode(varName, readerParam)
+        is CustomTypeRef -> readCustomCode(varName, readerParam)
+        is FragmentsWrapperTypeRef -> readFragmentsWrapperCode(varName, readerParam)
+        is FragmentTypeRef -> readFragmentCode(readerParam)
+        is InlineFragmentTypeRef -> readInlineFragmentCode(varName, readerParam)
     }
 }
 
-fun TypeRef.readResponseFieldValueCode(
-    varName: String,
-    propertyName: String
-): CodeBlock = wrapNullCheck(readValueCode(varName), propertyName)
+fun BuiltinTypeRef.readValueCode(varName: String, readerParam: String) =
+    CodeBlock.of("%L.%L(%L)", readerParam, readMethod, varName)
 
-fun TypeRef.readValueCode(
-    varName: String,
-    readerParam: String = Types.defaultReaderParam
-): CodeBlock {
-    return when (kind) {
-        TypeKind.STRING,
-        TypeKind.INT,
-        TypeKind.LONG,
-        TypeKind.DOUBLE,
-        TypeKind.BOOLEAN -> readScalarCode(varName, readerParam)
-        TypeKind.ENUM -> readEnumCode(varName, readerParam)
-        TypeKind.OBJECT -> readObjectCode(varName, readerParam)
-        TypeKind.LIST -> readListCode(varName, readerParam)
-        TypeKind.CUSTOM -> readCustomCode(varName, readerParam)
-        TypeKind.FRAGMENT -> readFragmentsCode(varName, readerParam)
-        TypeKind.INLINE_FRAGMENT -> readInlineFragmentCode(varName, readerParam)
-    }
-}
-
-fun TypeRef.readScalarCode(varName: String, readerParam: String): CodeBlock {
-    return CodeBlock.of("%L.%L(%L)", readerParam, kind.readMethod, varName)
-}
-
-fun TypeRef.readEnumCode(
-    varName: String,
-    readerParam: String
-): CodeBlock {
+fun EnumTypeRef.readValueCode(varName: String, readerParam: String): CodeBlock {
     return CodeBlock.of("""
         %L.%L(%L)?.let {
         %>%T.%L(it)
         %<}
-    """.trimIndent(), readerParam, TypeKind.STRING.readMethod, varName, typeName(false),
-            Types.enumSafeValueOfFun)
+    """.trimIndent(), readerParam, readMethod, varName, required().kotlin(), Types.enumSafeValueOfFun)
 }
 
-fun TypeRef.readObjectCode(
-    varName: String,
-    readerParam: String
-): CodeBlock {
-    val typeName = typeName(false)
+fun ObjectTypeRef.readValueCode(varName: String, readerParam: String): CodeBlock {
+    val typeName = required().kotlin()
     val readerLambda = CodeBlock.of("""
         %T {
         %>%T.%L.map(it)
@@ -106,101 +187,97 @@ fun TypeRef.readObjectCode(
     """.trimIndent(),
             RESPONSE_OBJECT_READER.parameterizedBy(typeName), typeName, Selections.mapperProperty)
 
-    return CodeBlock.of("%L.%L(%L, %L)", readerParam, kind.readMethod, varName, readerLambda)
+    return CodeBlock.of("%L.%L(%L, %L)", readerParam, "readObject", varName, readerLambda)
 }
 
-fun TypeRef.readListCode(
-    varName: String,
-    readerParam: String
-): CodeBlock {
-    val typeName = typeName(false)
-    val fieldType = parameters[0]
+fun ListTypeRef.readValueCode(varName: String, readerParam: String): CodeBlock {
+    val typeName = required().kotlin()
+    val fieldType = ofType
     val readerLambda = CodeBlock.of("""
         %T { %L ->
         %>%L
         %<}
     """.trimIndent(),
             RESPONSE_LIST_READER.parameterizedBy(typeName), Types.defaultItemReaderParam,
-            fieldType.readListItemStatement(Types.defaultItemReaderParam))
+            fieldType.readListItemCode(Types.defaultItemReaderParam))
 
-    return CodeBlock.of("%L.%L(%L, %L)", readerParam, kind.readMethod, varName, readerLambda)
+    return CodeBlock.of("%L.%L(%L, %L)", readerParam, readMethod, varName, readerLambda)
 }
 
-fun TypeRef.readListItemStatement(itemReaderParam: String): CodeBlock {
-    fun readScalar() = CodeBlock.of("%L.%L()", itemReaderParam, kind.readMethod)
+fun TypeRef.readListItemCode(itemReaderParam: String): CodeBlock {
+    fun readBuiltin() = CodeBlock.of("%L.%L()", itemReaderParam, readMethod)
 
-    fun readEnum(): CodeBlock {
-        return CodeBlock.of("%T.%L(%L.%L())", typeName(false), Types.enumSafeValueOfFun,
-                itemReaderParam, kind.readMethod)
-    }
+    fun readEnum() =
+        CodeBlock.of("%T.%L(%L.%L())", required().kotlin(), Types.enumSafeValueOfFun, itemReaderParam, readMethod)
 
     fun readObject(): CodeBlock {
-        val typeName = typeName(false)
+        val typeName = required().kotlin()
         val readerLambda = CodeBlock.of("""
             %T {
             %>%T.%L.map(it)
             %<}
-        """.trimIndent(), RESPONSE_OBJECT_READER.parameterizedBy(typeName), typeName,
-                Selections.mapperProperty)
+        """.trimIndent(), RESPONSE_OBJECT_READER.parameterizedBy(typeName), typeName, Selections.mapperProperty)
 
-        return CodeBlock.of("%L.%L(%L)", itemReaderParam, kind.readMethod, readerLambda)
+        return CodeBlock.of("%L.%L(%L)", itemReaderParam, readMethod, readerLambda)
     }
 
-    fun readList(): CodeBlock {
-        val fieldType = parameters[0]
-        val readItemCode = fieldType.readListItemStatement("it")
+    fun ListTypeRef.readList(): CodeBlock {
+        val readItemCode = ofType.readListItemCode("it")
         val readerLambda = CodeBlock.of("""
             %T {
             %>%L
             %<}
         """.trimIndent(), RESPONSE_LIST_READER, readItemCode)
-        return CodeBlock.of("%L.%L(%L)", itemReaderParam, kind.readMethod, readerLambda)
+        return CodeBlock.of("%L.%L(%L)", itemReaderParam, readMethod, readerLambda)
     }
 
     fun readCustom() =
-            CodeBlock.of("%L.%L(%T)", itemReaderParam, kind.readMethod, ClassName.bestGuess(name))
+        CodeBlock.of("%L.%L(%T)", itemReaderParam, readMethod, ClassName.bestGuess(name))
 
-    return when (kind) {
-        TypeKind.STRING,
-        TypeKind.INT,
-        TypeKind.LONG,
-        TypeKind.DOUBLE,
-        TypeKind.BOOLEAN -> readScalar()
-        TypeKind.ENUM -> readEnum()
-        TypeKind.OBJECT -> readObject()
-        TypeKind.LIST -> readList()
-        TypeKind.CUSTOM -> readCustom()
-        TypeKind.FRAGMENT,
-        TypeKind.INLINE_FRAGMENT -> throw UnsupportedOperationException(
-                "Lists of fragments are not allowed."
-        )
+    return when (this) {
+        is BuiltinTypeRef -> readBuiltin()
+        is EnumTypeRef -> readEnum()
+        is ObjectTypeRef -> readObject()
+        is ListTypeRef -> readList()
+        is CustomTypeRef -> readCustom()
+        is FragmentsWrapperTypeRef,
+        is FragmentTypeRef,
+        is InlineFragmentTypeRef -> throw UnsupportedOperationException("Lists of fragments are not allowed.")
     }
 }
 
-fun TypeRef.readCustomCode(varName: String, readerParam: String): CodeBlock {
+fun CustomTypeRef.readCustomCode(varName: String, readerParam: String): CodeBlock {
     return CodeBlock.of("%L.%L(%L as %T)",
-            readerParam, kind.readMethod, varName, ResponseField.CustomTypeField::class)
+            readerParam, readMethod, varName, ResponseField.CustomTypeField::class)
 }
 
-fun TypeRef.readFragmentsCode(varName: String, readerParam: String): CodeBlock {
-    val fragmentsType = ClassName("", Selections.fragmentsType)
-
+fun FragmentsWrapperTypeRef.readFragmentsWrapperCode(varName: String, readerParam: String): CodeBlock {
+    val typeName = kotlin()
     val readerLambda = CodeBlock.of("""
         %T { %L, %L ->
         %>%T.%L.map(%L, %L)
         %<}
     """.trimIndent(),
-            RESPONSE_CONDITIONAL_READER.parameterizedBy(fragmentsType),
+            RESPONSE_CONDITIONAL_READER.parameterizedBy(typeName),
             Types.conditionalTypeParam, Types.defaultReaderParam,
-            fragmentsType, Selections.mapperProperty, Types.defaultReaderParam,
+            typeName, Selections.mapperProperty, Types.defaultReaderParam,
             Types.conditionalTypeParam
     )
 
-    return CodeBlock.of("%L.%L(%L, %L)", readerParam, kind.readMethod, varName, readerLambda)
+    return CodeBlock.of("%L.%L(%L, %L)", readerParam, readMethod, varName, readerLambda)
 }
 
-fun TypeRef.readInlineFragmentCode(varName: String, readerParam: String): CodeBlock {
-    val concreteType = ClassName.bestGuess(jvmName)
+fun FragmentTypeRef.readFragmentCode(readerParam: String): CodeBlock {
+    val typeName = required().kotlin()
+    return CodeBlock.of("%T.%L.takeIf { %L in %T.%L }?.map(%L)",
+        typeName, Selections.mapperProperty,
+        Types.conditionalTypeParam, typeName, Fragments.possibleTypesProp,
+        readerParam)
+}
+
+// TODO this isn't right
+fun InlineFragmentTypeRef.readInlineFragmentCode(varName: String, readerParam: String): CodeBlock {
+    val concreteType = ClassName.bestGuess(name)
 
     val readerLambda = CodeBlock.of("""
         %T { %L, %L ->
@@ -211,15 +288,30 @@ fun TypeRef.readInlineFragmentCode(varName: String, readerParam: String): CodeBl
             Types.conditionalTypeParam, Types.defaultReaderParam,
             concreteType, Selections.mapperProperty, Types.defaultReaderParam)
 
-    return CodeBlock.of("%L.%L(%L, %L)", readerParam, kind.readMethod, varName, readerLambda)
+    return CodeBlock.of("%L.%L(%L, %L)", readerParam, readMethod, varName, readerLambda)
 }
 
-fun TypeRef.writeInputFieldValueCode(
-    varName: String,
-    propertyName: String = varName
-): CodeBlock {
-    return writeValueCode(varName, propertyName, listWriterType = INPUT_FIELD_LIST_WRITER).let {
-        if (isOptional) {
+val TypeRef.writeMethod get() = when (this) {
+    is BuiltinTypeRef -> when (kind) {
+        BuiltinType.INT -> "writeInt"
+        BuiltinType.FLOAT -> "writeDouble"
+        BuiltinType.STRING -> "writeString"
+        BuiltinType.BOOLEAN -> "writeBoolean"
+        BuiltinType.ID -> "writeString"
+    }
+    is EnumTypeRef -> "writeString"
+    is ObjectTypeRef -> "writeObject"
+    is ListTypeRef -> "writeList"
+    is CustomTypeRef -> "writeCustom"
+    is FragmentsWrapperTypeRef,
+    is FragmentTypeRef,
+    is InlineFragmentTypeRef -> throw UnsupportedOperationException()
+}
+
+fun TypeRef.writeInputFieldValueCode(varName: String, propertyName: String = varName): CodeBlock {
+    return writeValueCode(varName, propertyName, listWriterType = INPUT_FIELD_LIST_WRITER)
+        .let {
+        if (optional == OptionalType.INPUT) {
             CodeBlock.of("""
                 if (%L.defined) {
                 %>%L
@@ -231,16 +323,8 @@ fun TypeRef.writeInputFieldValueCode(
     }
 }
 
-fun TypeRef.writeResponseFieldValueCode(
-    varName: String,
-    propertyName: String
-): CodeBlock {
-    return writeValueCode(
-            varName = varName,
-            propertyName = propertyName,
-            listWriterType = RESPONSE_LIST_WRITER
-    )
-}
+fun TypeRef.writeResponseFieldValueCode(varName: String, propertyName: String) =
+    writeValueCode(varName, propertyName, listWriterType = RESPONSE_LIST_WRITER)
 
 fun TypeRef.writeValueCode(
     varName: String,
@@ -249,70 +333,42 @@ fun TypeRef.writeValueCode(
     itemWriterParam: String = Types.defaultItemWriterParam,
     listWriterType: ClassName
 ): CodeBlock {
-    return when (kind) {
-        TypeKind.STRING,
-        TypeKind.INT,
-        TypeKind.LONG,
-        TypeKind.DOUBLE,
-        TypeKind.BOOLEAN -> writeScalarCode(varName, propertyName, writerParam)
-        TypeKind.ENUM -> writeEnumCode(varName, propertyName, writerParam)
-        TypeKind.OBJECT -> writeObjectCode(varName, propertyName, writerParam)
-        TypeKind.LIST ->
-            writeListCode(varName, propertyName, writerParam, itemWriterParam, listWriterType)
-        TypeKind.CUSTOM -> writeCustomCode(varName, propertyName, writerParam)
-        TypeKind.FRAGMENT -> writeFragmentCode(propertyName, writerParam)
-        TypeKind.INLINE_FRAGMENT -> TODO()
-    } }
-
-fun TypeRef.writeScalarCode(
-    varName: String,
-    propertyName: String,
-    writerParam: String
-): CodeBlock {
-    val typeName = typeName()
-    val valueCode = typeName.unwrapOptionalValue(propertyName, false)
-    return CodeBlock.of("%L.%L(%S, %L)", writerParam, kind.writeMethod, varName, valueCode)
-}
-
-fun TypeRef.writeEnumCode(
-    varName: String,
-    propertyName: String,
-    writerParam: String
-): CodeBlock {
-    val typeName = typeName()
-    val valueCode = typeName.unwrapOptionalValue(propertyName) {
-        CodeBlock.of("%L.rawValue()", it)
+    return when (this) {
+        is BuiltinTypeRef -> writeValueCode(varName, propertyName, writerParam)
+        is EnumTypeRef -> writeValueCode(varName, propertyName, writerParam)
+        is ObjectTypeRef -> writeValueCode(varName, propertyName, writerParam)
+        is ListTypeRef -> writeValueCode(varName, propertyName, writerParam, itemWriterParam, listWriterType)
+        is CustomTypeRef -> writeCustomCode(varName, propertyName, writerParam)
+        is FragmentsWrapperTypeRef,
+        is FragmentTypeRef,
+        is InlineFragmentTypeRef -> writeFragmentCode(propertyName, writerParam)
     }
-    return CodeBlock.of("%L.%L(%S, %L)", writerParam, kind.writeMethod, varName, valueCode)
 }
 
-fun TypeRef.writeObjectCode(
-    varName: String,
-    propertyName: String,
-    writerParam: String
-): CodeBlock {
-    val typeName = typeName()
-    val valueCode = typeName.unwrapOptionalValue(propertyName) {
-        CodeBlock.of("%L.%L", it, Selections.marshallerProperty)
-    }
-    return CodeBlock.of("%L.%L(%S, %L)", writerParam, kind.writeMethod, varName, valueCode)
+fun BuiltinTypeRef.writeValueCode(varName: String, propertyName: String, writerParam: String): CodeBlock {
+    val valueCode = optional.toValue(propertyName.code())
+    return CodeBlock.of("%L.%L(%S, %L)", writerParam, writeMethod, varName, valueCode)
 }
 
-fun TypeRef.writeListCode(
+fun EnumTypeRef.writeValueCode(varName: String, propertyName: String, writerParam: String): CodeBlock {
+    return CodeBlock.of("%L.%L(%S, %L.%L)",
+        writerParam, writeMethod, varName, optional.toReceiver(propertyName.code()), InputTypes.enumRawValueProp)
+}
+
+fun ObjectTypeRef.writeValueCode(varName: String, propertyName: String, writerParam: String): CodeBlock {
+    return CodeBlock.of("%L.%L(%S, %L.%L)",
+        writerParam, writeMethod, varName, optional.toReceiver(propertyName.code()), Selections.marshallerProperty)
+}
+
+fun ListTypeRef.writeValueCode(
     varName: String,
     propertyName: String,
     writerParam: String,
     itemWriterParam: String,
     listWriterType: ClassName
 ): CodeBlock {
-    val typeName = typeName()
-    val unwrappedListValue = typeName.unwrapOptionalValue(propertyName)
-    val listParamType = if (kind == TypeKind.LIST) parameters.first() else this
-    val listWriterCode = typeName.unwrapOptionalValue(propertyName) {
-        CodeBlock.of("%L", listParamType.listWriter(unwrappedListValue, itemWriterParam,
-                listWriterType))
-    }
-    return CodeBlock.of("%L.%L(%S, %L)", writerParam, kind.writeMethod, varName, listWriterCode)
+    return CodeBlock.of("%L.%L(%S, %L)", writerParam, writeMethod, varName,
+        ofType.listWriter(optional.toReceiver(propertyName.code()), itemWriterParam, listWriterType))
 }
 
 fun TypeRef.listWriter(
@@ -334,138 +390,50 @@ fun TypeRef.writeListItemCode(
     itemWriterParam: String,
     listWriterType: ClassName
 ): CodeBlock {
-    fun writeList(): CodeBlock {
-        val nestedListItemParamType = if (kind == TypeKind.LIST) parameters.first() else this
-        val nestedListWriter = nestedListItemParamType.listWriter(CodeBlock.of("%L", "it"),
-                itemWriterParam, listWriterType)
-        return if (isOptional) {
-            CodeBlock.of("\n%>%L.%L(%L?.let { %L })\n%<", itemWriterParam, kind.writeMethod, "it",
-                    nestedListWriter)
-        } else {
-            CodeBlock.of("\n%>%L.%L(%L)\n%<", itemWriterParam, kind.writeMethod, nestedListWriter)
-        }
-    }
+    fun writeBuiltin() = CodeBlock.of(" %L.%L(it) ", itemWriterParam, writeMethod)
 
-    fun writeCustom(): CodeBlock {
-        return CodeBlock.of(" %L.%L(%T, it) ",
-                itemWriterParam, kind.writeMethod, ClassName.bestGuess(name))
-    }
-
-    fun writeEnum(): CodeBlock {
-        val valueCode = if (isOptional) "it?" else "it"
-        return CodeBlock.of(" %L.%L(%L.rawValue()) ", itemWriterParam, kind.writeMethod, valueCode)
-    }
-
-    fun writeScalar() = CodeBlock.of(" %L.%L(it) ", itemWriterParam, kind.writeMethod)
+    fun writeEnum() =
+        CodeBlock.of(" %L.%L(%L.rawValue) ", itemWriterParam, writeMethod, optional.toReceiver("it".code()))
 
     fun writeObject(): CodeBlock {
-        val valueCode = if (isOptional) "it?" else "it"
         return CodeBlock.of(" %L.%L(%L.%L) ",
-                itemWriterParam, kind.writeMethod, valueCode, Selections.marshallerProperty)
+            itemWriterParam, writeMethod, optional.toReceiver("it".code()), Selections.marshallerProperty)
     }
 
-    return when (kind) {
-        TypeKind.STRING,
-        TypeKind.INT,
-        TypeKind.LONG,
-        TypeKind.DOUBLE,
-        TypeKind.BOOLEAN -> writeScalar()
-        TypeKind.ENUM -> writeEnum()
-        TypeKind.OBJECT -> writeObject()
-        TypeKind.LIST -> writeList()
-        TypeKind.CUSTOM -> writeCustom()
-        TypeKind.FRAGMENT,
-        TypeKind.INLINE_FRAGMENT -> throw UnsupportedOperationException()
+    fun ListTypeRef.writeList(): CodeBlock {
+        val nestedListWriter = ofType.listWriter("it".code(), itemWriterParam, listWriterType)
+        val valueCode = if (optional == OptionalType.NONNULL) {
+            nestedListWriter
+        } else {
+            CodeBlock.of("%L.let { %L }", optional.toReceiver("it".code()), nestedListWriter)
+        }
+        return CodeBlock.of("\n%>%L.%L(%L)\n%<", itemWriterParam, writeMethod, valueCode)
+    }
+
+    fun CustomTypeRef.writeCustom() =
+        CodeBlock.of(" %L.%L(%T, it) ", itemWriterParam, writeMethod, spec.customTypeName.kotlin())
+
+    return when (this) {
+        is BuiltinTypeRef -> writeBuiltin()
+        is EnumTypeRef -> writeEnum()
+        is ObjectTypeRef -> writeObject()
+        is ListTypeRef -> writeList()
+        is CustomTypeRef -> writeCustom()
+        is FragmentsWrapperTypeRef,
+        is FragmentTypeRef,
+        is InlineFragmentTypeRef -> throw UnsupportedOperationException("Lists of fragments are not allowed.")
     }
 }
 
-fun TypeRef.writeCustomCode(
-    varName: String,
-    propertyName: String,
-    writerParam: String
-): CodeBlock {
-    val typeName = typeName()
-    val valueCode = typeName.unwrapOptionalValue(propertyName, false)
+fun CustomTypeRef.writeCustomCode(varName: String, propertyName: String, writerParam: String): CodeBlock {
     return CodeBlock.of("%L.%L(%S, %T, %L)",
-            writerParam, kind.writeMethod, varName, ClassName.bestGuess(name), valueCode)
+            writerParam, writeMethod, varName, spec.customTypeName.kotlin(), optional.toValue(propertyName.code()))
 }
 
-fun writeFragmentCode(
-    propertyName: String,
-    writerParam: String
-): CodeBlock {
-    return CodeBlock.of("%L.%L.marshal(%L)",
-            propertyName, Selections.marshallerProperty, writerParam)
-}
-
-fun TypeName.isOptional(expectedOptionalType: ClassName? = null): Boolean {
-    val rawType = (this as? ParameterizedTypeName)?.rawType ?: this
-    return if (expectedOptionalType == null) {
-        return (rawType in setOf(APOLLO_OPTIONAL, GUAVA_OPTIONAL, JAVA_OPTIONAL, INPUT_OPTIONAL))
-    } else {
-        rawType == expectedOptionalType
-    }
-}
-
-fun TypeName.unwrapOptionalValue(
-    varName: String,
-    checkIfPresent: Boolean = true,
-    transformation: ((CodeBlock) -> CodeBlock) = { it }
-): CodeBlock {
-    return if (isOptional() && this is ParameterizedTypeName) {
-        if (rawType == INPUT_OPTIONAL) {
-            val valueCode = if (checkIfPresent) {
-                CodeBlock.of("%L.value?", varName)
-            } else {
-                CodeBlock.of("%L.value", varName)
-            }
-            transformation(valueCode)
-        } else {
-            if (checkIfPresent) {
-                transformation(CodeBlock.of("%L.takeIf { it.isPresent() }?.get()", varName))
-            } else {
-                transformation(CodeBlock.of("%L.get()", varName))
-            }
-        }
-    } else {
-        val valueCode = CodeBlock.of("%L", varName)
-        if (nullable && checkIfPresent) {
-            transformation(CodeBlock.of("%L?", valueCode))
-        } else {
-            transformation(valueCode)
-        }
-    }
-}
-
-fun TypeName.wrapOptionalValue(value: CodeBlock): CodeBlock {
-    return if (isOptional() && this is ParameterizedTypeName) {
-        CodeBlock.of("%T.fromNullable(%L)", rawType, value)
-    } else {
-        value
-    }
-}
-
-fun TypeName.wrapOptionalValue(value: String): CodeBlock {
-    return wrapOptionalValue(CodeBlock.of("%L", value))
-}
-
-fun TypeName.defaultOptionalValue(): CodeBlock {
-    return if (isOptional() && this is ParameterizedTypeName) {
-        CodeBlock.of("%T.absent", rawType)
-    } else if (nullable) {
-        CodeBlock.of("%L", "null")
-    } else {
-        CodeBlock.of("")
-    }
-}
-
-fun TypeRef.wrapNullCheck(code: CodeBlock, propertyName: String): CodeBlock {
-    return if (!isOptional) {
-        CodeBlock.of("%T.%L(%L, %S)",
-                APOLLO_UTILS, Types.checkNotNullFun, code, "$propertyName == null")
-    } else {
-        code
-    }
+fun TypeRef.writeFragmentCode(propertyName: String, writerParam: String): CodeBlock {
+    return CodeBlock.of(
+        "%L.%L.marshal(%L)",
+        optional.toReceiver(propertyName.code()), Selections.marshallerProperty, writerParam)
 }
 
 object Types {
@@ -475,5 +443,4 @@ object Types {
     const val defaultItemWriterParam = "_itemWriter"
     const val conditionalTypeParam = "_conditionalType"
     const val enumSafeValueOfFun = "safeValueOf"
-    const val checkNotNullFun = "checkNotNull"
 }

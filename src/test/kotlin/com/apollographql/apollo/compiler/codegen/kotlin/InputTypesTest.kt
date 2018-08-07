@@ -1,171 +1,125 @@
 package com.apollographql.apollo.compiler.codegen.kotlin
 
-import com.apollographql.apollo.api.Input
-import com.apollographql.apollo.api.ScalarType
 import com.apollographql.apollo.compiler.ast.BooleanValue
 import com.apollographql.apollo.compiler.ast.EnumValue
 import com.apollographql.apollo.compiler.ast.IntValue
 import com.apollographql.apollo.compiler.ast.ListValue
 import com.apollographql.apollo.compiler.ast.StringValue
-import com.apollographql.apollo.compiler.ir.Builtins
 import com.apollographql.apollo.compiler.ir.CustomTypesSpec
-import com.apollographql.apollo.compiler.ir.EnumTypeSpec
-import com.apollographql.apollo.compiler.ir.EnumValueSpec
 import com.apollographql.apollo.compiler.ir.InputObjectTypeSpec
 import com.apollographql.apollo.compiler.ir.InputValueSpec
-import com.apollographql.apollo.compiler.ir.ScalarTypeSpec
-import com.apollographql.apollo.compiler.ir.TypeKind
-import com.apollographql.apollo.compiler.ir.TypeRef
+import com.apollographql.apollo.compiler.ir.OptionalType
 import com.google.common.truth.Truth.assertThat
 import com.squareup.kotlinpoet.ClassName
-import com.squareup.kotlinpoet.TypeSpec
 import org.junit.Test
 import java.math.BigInteger
-import java.net.URI
-import java.util.Date
 
 class InputTypesTest {
 
     @Test
     fun `emits input object type`() {
         val spec = InputObjectTypeSpec(
-                name = "ReviewInput",
-                doc = "The input object sent when someone is creating a new review",
-                values = listOf(
-                        InputValueSpec(
-                                name = "stars",
-                                doc = "0-5 stars",
-                                type = intRef.copy(isOptional = false)
-                        ),
-                        InputValueSpec(
-                                name = "nullableIntFieldWithDefaultValue",
-                                doc = "for test purposes only",
-                                type = intRef.copy(optionalType = Input::class),
-                                defaultValue = IntValue(BigInteger.valueOf(10))
-                        ),
-                        InputValueSpec(
-                                name = "commentary",
-                                doc = "Comment about the movie, optional",
-                                type = stringRef.copy(optionalType = Input::class)
-                        ),
-                        InputValueSpec(
-                                name = "favoriteColor",
-                                doc = "Favorite color",
-                                type = colorInputRef.copy(isOptional = false)
-                        ),
-                        InputValueSpec(
-                                name = "enumWithDefaultValue",
-                                doc = "for test purposes only",
-                                type = episodeRef.copy(optionalType = Input::class),
-                                defaultValue = EnumValue("JEDI")
-                        ),
-                        InputValueSpec(
-                                name = "nullableEnum",
-                                doc = "for test purposes only",
-                                type = episodeRef.copy(optionalType = Input::class)
-                        ),
-                        InputValueSpec(
-                                name = "listOfCustomScalar",
-                                doc = "for test purposes only",
-                                type = listRef.copy(
-                                        optionalType = Input::class,
-                                        parameters = listOf(dateRef)),
-                                defaultValue = ListValue(listOf(
-                                        StringValue("1984-06-21"),
-                                        StringValue("1984-11-21")
-                                ))
-                        ),
-                        InputValueSpec(
-                                name = "customScalar",
-                                doc = "for test purposes only",
-                                type = dateRef.copy(optionalType = Input::class),
-                                defaultValue = StringValue("1984-06-21")
-                        ),
-                        InputValueSpec(
-                                name = "listOfEnums",
-                                doc = "for test purposes only",
-                                type = listRef.copy(
-                                        optionalType = Input::class,
-                                        parameters = listOf(episodeRef))
-                        ),
-                        InputValueSpec(
-                                name = "listOfInt",
-                                doc = "for test purposes only",
-                                type = listRef.copy(
-                                        optionalType = Input::class,
-                                        parameters = listOf(intRef)),
-                                defaultValue = ListValue(listOf(
-                                        IntValue(BigInteger.valueOf(1)),
-                                        IntValue(BigInteger.valueOf(2)),
-                                        IntValue(BigInteger.valueOf(3))
-                                ))
-                        ),
-                        InputValueSpec(
-                                name = "listOfString",
-                                doc = "for test purposes only",
-                                type = listRef.copy(
-                                        optionalType = Input::class,
-                                        parameters = listOf(stringRef)),
-                                defaultValue = ListValue(listOf(
-                                        StringValue("test1"),
-                                        StringValue("test2"),
-                                        StringValue("test3")
-                                ))
-                        ),
-                        InputValueSpec(
-                                name = "booleanWithDefaultValue",
-                                doc = "for test purposes only",
-                                type = booleanRef.copy(optionalType = Input::class),
-                                defaultValue = BooleanValue(true)
-                        ),
-                        InputValueSpec(
-                                name = "listOfListOfString",
-                                doc = "for test purposes only",
-                                type = listRef.copy(
-                                        optionalType = Input::class,
-                                        parameters = listOf(
-                                                listRef.copy(
-                                                        isOptional = false,
-                                                        parameters = listOf(
-                                                                stringRef.copy(isOptional = false)
-                                                        ))))
-                        ),
-                        InputValueSpec(
-                                name = "listOfListOfEnum",
-                                doc = "for test purposes only",
-                                type = listRef.copy(
-                                        optionalType = Input::class,
-                                        parameters = listOf(
-                                                listRef.copy(
-                                                        isOptional = false,
-                                                        parameters = listOf(
-                                                                episodeRef.copy(isOptional = false)
-                                                        ))))
-                        ),
-                        InputValueSpec(
-                                name = "listOfListOfCustom",
-                                doc = "for test purposes only",
-                                type = listRef.copy(
-                                        optionalType = Input::class,
-                                        parameters = listOf(
-                                                listRef.copy(
-                                                        isOptional = false,
-                                                        parameters = listOf(
-                                                                dateRef.copy(isOptional = false)
-                                                        ))))
-                        ),
-                        InputValueSpec(
-                                name = "listOfListOfObject",
-                                doc = "for test purposes only",
-                                type = listRef.copy(
-                                        optionalType = Input::class,
-                                        parameters = listOf(
-                                                listRef.copy(
-                                                        isOptional = false,
-                                                        parameters = listOf(
-                                                                colorInputRef.copy(isOptional = false)
-                                                        ))))
-                        )))
+            name = "ReviewInput",
+            doc = "The input object sent when someone is creating a new review",
+            values = listOf(
+                InputValueSpec(
+                    name = "stars",
+                    doc = "0-5 stars",
+                    type = intRef.required()
+                ),
+                InputValueSpec(
+                    name = "nullableIntFieldWithDefaultValue",
+                    doc = "for test purposes only",
+                    type = intRef.optional(OptionalType.INPUT),
+                    defaultValue = IntValue(BigInteger.valueOf(10))
+                ),
+                InputValueSpec(
+                    name = "commentary",
+                    doc = "Comment about the movie, optional",
+                    type = stringRef.optional(OptionalType.INPUT)
+                ),
+                InputValueSpec(
+                    name = "favoriteColor",
+                    doc = "Favorite color",
+                    type = colorInputRef.required()
+                ),
+                InputValueSpec(
+                    name = "enumWithDefaultValue",
+                    doc = "for test purposes only",
+                    type = episodeRef.optional(OptionalType.INPUT),
+                    defaultValue = EnumValue("JEDI")
+                ),
+                InputValueSpec(
+                    name = "nullableEnum",
+                    doc = "for test purposes only",
+                    type = episodeRef.optional(OptionalType.INPUT)
+                ),
+                InputValueSpec(
+                    name = "listOfCustomScalar",
+                    doc = "for test purposes only",
+                    type = listRef.optional(OptionalType.INPUT).of(customDateRef),
+                    defaultValue = ListValue(listOf(
+                        StringValue("1984-06-21"),
+                        StringValue("1984-11-21")
+                    ))
+                ),
+                InputValueSpec(
+                    name = "customScalar",
+                    doc = "for test purposes only",
+                    type = customDateRef.optional(OptionalType.INPUT),
+                    defaultValue = StringValue("1984-06-21")
+                ),
+                InputValueSpec(
+                    name = "listOfEnums",
+                    doc = "for test purposes only",
+                    type = listRef.optional(OptionalType.INPUT).of(episodeRef)
+                ),
+                InputValueSpec(
+                    name = "listOfInt",
+                    doc = "for test purposes only",
+                    type = listRef.optional(OptionalType.INPUT).of(intRef),
+                    defaultValue = ListValue(listOf(
+                        IntValue(BigInteger.valueOf(1)),
+                        IntValue(BigInteger.valueOf(2)),
+                        IntValue(BigInteger.valueOf(3))
+                    ))
+                ),
+                InputValueSpec(
+                    name = "listOfString",
+                    doc = "for test purposes only",
+                    type = listRef.optional(OptionalType.INPUT).of(stringRef),
+                    defaultValue = ListValue(listOf(
+                        StringValue("test1"),
+                        StringValue("test2"),
+                        StringValue("test3")
+                    ))
+                ),
+                InputValueSpec(
+                    name = "booleanWithDefaultValue",
+                    doc = "for test purposes only",
+                    type = booleanRef.optional(OptionalType.INPUT),
+                    defaultValue = BooleanValue(true)
+                ),
+                InputValueSpec(
+                    name = "listOfListOfString",
+                    doc = "for test purposes only",
+                    type = listRef.optional(OptionalType.INPUT).of(listRef.required().of(stringRef.required()))
+                ),
+                InputValueSpec(
+                    name = "listOfListOfEnum",
+                    doc = "for test purposes only",
+                    type = listRef.optional(OptionalType.INPUT).of(listRef.required().of(episodeRef.required()))
+                ),
+                InputValueSpec(
+                    name = "listOfListOfCustom",
+                    doc = "for test purposes only",
+                    type = listRef.optional(OptionalType.INPUT).of(listRef.required().of(customDateRef.required()))
+                ),
+                InputValueSpec(
+                    name = "listOfListOfObject",
+                    doc = "for test purposes only",
+                    type = listRef.optional(OptionalType.INPUT).of(listRef.required().of(colorInputRef.required()))
+                )))
         assertThat(spec.typeSpec(ClassName("", "ReviewInput")).code()).isEqualTo("""
             /**
              * @param stars 0-5 stars
@@ -189,13 +143,13 @@ class InputTypesTest {
             data class ReviewInput(
                 val stars: Int,
                 val nullableIntFieldWithDefaultValue: Input<Int> = Input.fromNullable(10),
-                val commentary: Input<String> = Input.absent,
+                val commentary: Input<String> = Input.absent(),
                 val favoriteColor: ColorInput,
                 val enumWithDefaultValue: Input<Episode> = Input.fromNullable(Episode.JEDI),
-                val nullableEnum: Input<Episode> = Input.absent,
-                val listOfCustomScalar: Input<List<CustomType.DATE?>> = Input.absent,
-                val customScalar: Input<CustomType.DATE> = Input.absent,
-                val listOfEnums: Input<List<Episode?>> = Input.absent,
+                val nullableEnum: Input<Episode> = Input.absent(),
+                val listOfCustomScalar: Input<List<ZonedDateTime?>> = Input.absent(),
+                val customScalar: Input<ZonedDateTime> = Input.absent(),
+                val listOfEnums: Input<List<Episode?>> = Input.absent(),
                 val listOfInt: Input<List<Int?>> = Input.fromNullable(listOf(
                             1,
                             2,
@@ -207,10 +161,10 @@ class InputTypesTest {
                             "test3"
                         )),
                 val booleanWithDefaultValue: Input<Boolean> = Input.fromNullable(true),
-                val listOfListOfString: Input<List<List<String>>> = Input.absent,
-                val listOfListOfEnum: Input<List<List<Episode>>> = Input.absent,
-                val listOfListOfCustom: Input<List<List<CustomType.DATE>>> = Input.absent,
-                val listOfListOfObject: Input<List<List<ColorInput>>> = Input.absent
+                val listOfListOfString: Input<List<List<String>>> = Input.absent(),
+                val listOfListOfEnum: Input<List<List<Episode>>> = Input.absent(),
+                val listOfListOfCustom: Input<List<List<ZonedDateTime>>> = Input.absent(),
+                val listOfListOfObject: Input<List<List<ColorInput>>> = Input.absent()
             ) {
                 @delegate:Transient
                 internal val _marshaller: InputFieldMarshaller by lazy {
@@ -224,10 +178,10 @@ class InputTypesTest {
                                 }
                                 _writer.writeObject("favoriteColor", favoriteColor._marshaller)
                                 if (enumWithDefaultValue.defined) {
-                                    _writer.writeString("enumWithDefaultValue", enumWithDefaultValue.value?.rawValue())
+                                    _writer.writeString("enumWithDefaultValue", enumWithDefaultValue.value?.rawValue)
                                 }
                                 if (nullableEnum.defined) {
-                                    _writer.writeString("nullableEnum", nullableEnum.value?.rawValue())
+                                    _writer.writeString("nullableEnum", nullableEnum.value?.rawValue)
                                 }
                                 if (listOfCustomScalar.defined) {
                                     _writer.writeList("listOfCustomScalar", InputFieldWriter.ListWriter { _itemWriter ->
@@ -239,7 +193,7 @@ class InputTypesTest {
                                 }
                                 if (listOfEnums.defined) {
                                     _writer.writeList("listOfEnums", InputFieldWriter.ListWriter { _itemWriter ->
-                                        listOfEnums.value?.forEach { _itemWriter.writeString(it?.rawValue()) }
+                                        listOfEnums.value?.forEach { _itemWriter.writeString(it?.rawValue) }
                                     })
                                 }
                                 if (listOfInt.defined) {
@@ -268,7 +222,7 @@ class InputTypesTest {
                                     _writer.writeList("listOfListOfEnum", InputFieldWriter.ListWriter { _itemWriter ->
                                         listOfListOfEnum.value?.forEach {
                                             _itemWriter.writeList(InputFieldWriter.ListWriter { _itemWriter ->
-                                                it.forEach { _itemWriter.writeString(it.rawValue()) }
+                                                it.forEach { _itemWriter.writeString(it.rawValue) }
                                             })
                                         }
                                     })
@@ -299,32 +253,7 @@ class InputTypesTest {
 
     @Test
     fun `emits enum type`() {
-        val spec = EnumTypeSpec(
-                name = "Episode",
-                doc = "The episodes in the Star Wars trilogy.",
-                values = listOf(
-                        EnumValueSpec(
-                                name = "NEWHOPE",
-                                doc = "Star Wars Episode IV: A New Hope, released in 1977."
-                        ),
-                        EnumValueSpec(
-                                name = "EMPIRE",
-                                doc = "Star Wars Episode V: The Empire Strikes Back, released in 1980."
-                        ),
-                        EnumValueSpec(
-                                name = "jedi",
-                                propertyName = "JEDI",
-                                doc = "Star Wars Episode VI: Return of the Jedi, released in 1983."
-                        ),
-                        EnumValueSpec(
-                                name = "PHANTOM_MENACE",
-                                doc = "Star Wars Episode I: The Phantom Menace, released in 1997.",
-                                deprecationReason = "We don't talk about the prequels."
-                        )
-                )
-        )
-
-        assertThat(spec.typeSpec(ClassName("", spec.name)).code()).isEqualTo("""
+        assertThat(episodeSpec.typeSpec(ClassName("", episodeSpec.name)).code()).isEqualTo("""
             /**
              * The episodes in the Star Wars trilogy.
              */
@@ -365,26 +294,12 @@ class InputTypesTest {
 
     @Test
     fun `emits custom types enum`() {
-        val spec = CustomTypesSpec(listOf(
-                Builtins.idTypeSpec,
-                ScalarTypeSpec("DATE", type = TypeRef(
-                        name = "Date",
-                        jvmName = Date::class.java.canonicalName,
-                        kind = TypeKind.CUSTOM,
-                        isOptional = false
-                )),
-                ScalarTypeSpec("URL", type = TypeRef(
-                        name = "URL",
-                        jvmName = URI::class.java.canonicalName,
-                        kind = TypeKind.CUSTOM,
-                        isOptional = false
-                ))
-        ))
-        assertThat(spec.typeSpec().code()).isEqualTo("""
+        val spec = CustomTypesSpec(listOf(customIdSpec, customDateSpec, customUrlSpec))
+        assertThat(spec.typeSpec().code("com.example.types")).isEqualTo("""
             @Generated("Apollo GraphQL")
             enum class CustomType : ScalarType {
                 ID {
-                    override fun typeName(): String = "String"
+                    override fun typeName(): String = "ID"
 
                     override fun javaType(): Class<*> = java.lang.String::class.java
                 },
@@ -392,13 +307,13 @@ class InputTypesTest {
                 DATE {
                     override fun typeName(): String = "Date"
 
-                    override fun javaType(): Class<*> = Date::class.java
+                    override fun javaType(): Class<*> = ZonedDateTime::class.java
                 },
 
                 URL {
                     override fun typeName(): String = "URL"
 
-                    override fun javaType(): Class<*> = URI::class.java
+                    override fun javaType(): Class<*> = HttpUrl::class.java
                 }
             }
         """.trimIndent())

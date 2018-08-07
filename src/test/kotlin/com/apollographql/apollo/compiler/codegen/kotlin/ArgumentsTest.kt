@@ -18,19 +18,19 @@ import java.math.BigInteger
 class ArgumentsTest {
     @Test
     fun `emits scalar argument value`() {
-        with (IntValue(BigInteger.valueOf(33))) {
+        with(IntValue(BigInteger.valueOf(33))) {
             assertThat(argumentValueCode().toString()).isEqualTo("33")
         }
 
-        with (FloatValue(BigDecimal.valueOf(123.4))) {
+        with(FloatValue(BigDecimal.valueOf(123.4))) {
             assertThat(argumentValueCode().toString()).isEqualTo("123.4")
         }
 
-        with (StringValue("hello world")) {
+        with(StringValue("hello world")) {
             assertThat(argumentValueCode().toString()).isEqualTo("\"hello world\"")
         }
 
-        with (BooleanValue(false)) {
+        with(BooleanValue(false)) {
             assertThat(argumentValueCode().toString()).isEqualTo("false")
         }
     }
@@ -47,7 +47,7 @@ class ArgumentsTest {
 
     @Test
     fun `emits list argument value`() {
-        with (ListValue(listOf("foo", "bar", "baz").map { StringValue(it) })) {
+        with(ListValue(listOf("foo", "bar", "baz").map { StringValue(it) })) {
             assertThat(argumentValueCode().toString()).isEqualTo("""
                 listOf(
                     "foo",
@@ -57,7 +57,7 @@ class ArgumentsTest {
             """.trimIndent())
         }
 
-        with (ListValue(listOf(
+        with(ListValue(listOf(
                 ListValue(listOf("foo", "bar", "baz").map { StringValue(it) }),
                 ListValue(listOf(StringValue("qux")))
         ))) {
@@ -75,7 +75,7 @@ class ArgumentsTest {
             """.trimIndent())
         }
 
-        with (ListValue(listOf(
+        with(ListValue(listOf(
                 ObjectValue(listOf(
                         ObjectField("shape", StringValue("rectangle")),
                         ObjectField("area", FloatValue(BigDecimal.valueOf(44)))
@@ -102,7 +102,7 @@ class ArgumentsTest {
 
     @Test
     fun `emits object argument value`() {
-        with (ObjectValue(listOf(
+        with(ObjectValue(listOf(
                 ObjectField("shape", StringValue("rectangle")),
                 ObjectField("area", FloatValue(BigDecimal.valueOf(44)))
         ))) {
@@ -114,7 +114,7 @@ class ArgumentsTest {
             """.trimIndent())
         }
 
-        with (ObjectValue(listOf(
+        with(ObjectValue(listOf(
                 ObjectField("suits", ListValue(listOf("DIAMONDS", "CLUBS", "HEARTS", "SPADES").map { EnumValue(it) })),
                 ObjectField("faces", ListValue(listOf("jack", "queen", "king", "ace").map { StringValue(it) }))
         ))) {
@@ -136,7 +136,7 @@ class ArgumentsTest {
             """.trimIndent())
         }
 
-        with (ObjectValue(listOf(
+        with(ObjectValue(listOf(
                 ObjectField("polygons", ListValue(listOf(
                         ObjectValue(listOf(
                                 ObjectField("shape", StringValue("rectangle")),
@@ -167,7 +167,7 @@ class ArgumentsTest {
 
     @Test
     fun `emits variable argument value`() {
-        with (VariableValue("varName")) {
+        with(VariableValue("varName")) {
             assertThat(argumentValueCode().toString()).isEqualTo("""
                 mapOf(
                     "kind" to "Variable",

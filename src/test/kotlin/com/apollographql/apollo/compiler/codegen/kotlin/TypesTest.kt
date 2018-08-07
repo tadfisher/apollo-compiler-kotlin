@@ -1,22 +1,16 @@
 package com.apollographql.apollo.compiler.codegen.kotlin
 
-import com.apollographql.apollo.api.Input
 import com.apollographql.apollo.api.InputFieldWriter.ListWriter
-import com.apollographql.apollo.compiler.ir.TypeKind
-import com.apollographql.apollo.compiler.ir.TypeRef
+import com.apollographql.apollo.compiler.ir.ListTypeRef
+import com.apollographql.apollo.compiler.ir.OptionalType
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
-import java.util.Date
 
 class TypesTest {
 
     @Test
     fun `writes scalar value`() {
-        val ref = TypeRef(
-                name = "String",
-                kind = TypeKind.STRING,
-                isOptional = false
-        )
+        val ref = stringRef.required()
         val code = ref.writeInputFieldValueCode("varName")
         assertThat(code.toString().trim()).isEqualTo("""
             _writer.writeString("varName", varName)
@@ -25,12 +19,7 @@ class TypesTest {
 
     @Test
     fun `writes optional scalar value`() {
-        val ref = TypeRef(
-                name = "String",
-                kind = TypeKind.STRING,
-                isOptional = true,
-                optionalType = Input::class
-        )
+        val ref = stringRef.optional(OptionalType.INPUT)
         val code = ref.writeInputFieldValueCode("varName")
         assertThat(code.toString().trim()).isEqualTo("""
             if (varName.defined) {
@@ -41,40 +30,27 @@ class TypesTest {
 
     @Test
     fun `writes enum value`() {
-        val ref = TypeRef(
-                name = "Enum",
-                kind = TypeKind.ENUM,
-                isOptional = false
-        )
+        val ref = episodeRef.required()
         val code = ref.writeInputFieldValueCode("varName")
         assertThat(code.toString().trim()).isEqualTo("""
-            _writer.writeString("varName", varName.rawValue())
+            _writer.writeString("varName", varName.rawValue)
         """.trimIndent())
     }
 
     @Test
     fun `writes optional enum value`() {
-        val ref = TypeRef(
-                name = "Enum",
-                kind = TypeKind.ENUM,
-                isOptional = true,
-                optionalType = Input::class
-        )
+        val ref = episodeRef.optional(OptionalType.INPUT)
         val code = ref.writeInputFieldValueCode("varName")
         assertThat(code.toString().trim()).isEqualTo("""
             if (varName.defined) {
-                _writer.writeString("varName", varName.value?.rawValue())
+                _writer.writeString("varName", varName.value?.rawValue)
             }
         """.trimIndent())
     }
 
     @Test
     fun `writes object value`() {
-        val ref = TypeRef(
-                name = "ColorInput",
-                kind = TypeKind.OBJECT,
-                isOptional = false
-        )
+        val ref = colorInputRef.required()
         val code = ref.writeInputFieldValueCode("varName")
         assertThat(code.toString().trim()).isEqualTo("""
             _writer.writeObject("varName", varName._marshaller)
@@ -83,12 +59,7 @@ class TypesTest {
 
     @Test
     fun `writes optional object value`() {
-        val ref = TypeRef(
-                name = "ColorInput",
-                kind = TypeKind.OBJECT,
-                isOptional = true,
-                optionalType = Input::class
-        )
+        val ref = colorInputRef.optional(OptionalType.INPUT)
         val code = ref.writeInputFieldValueCode("varName")
         assertThat(code.toString().trim()).isEqualTo("""
             if (varName.defined) {
@@ -99,17 +70,7 @@ class TypesTest {
 
     @Test
     fun `writes list of scalars value`() {
-        val ref = TypeRef(
-                name = "List",
-                kind = TypeKind.LIST,
-                isOptional = false,
-                parameters = listOf(TypeRef(
-                        name = "Int",
-                        kind = TypeKind.INT,
-                        isOptional = false,
-                        parameters = emptyList()
-                ))
-        )
+        val ref = ListTypeRef(intRef.required()).required()
         val code = ref.writeInputFieldValueCode("varName")
         assertThat(code.toString().trim()).isEqualTo("""
             _writer.writeList("varName", ${ListWriter::class.qualifiedName} { _itemWriter ->
@@ -120,20 +81,7 @@ class TypesTest {
 
     @Test
     fun `writes optional list of scalars value`() {
-        val ref = TypeRef(
-                name = "List",
-                jvmName = List::class.qualifiedName!!,
-                kind = TypeKind.LIST,
-                isOptional = true,
-                optionalType = Input::class,
-                parameters = listOf(TypeRef(
-                        name = "Int",
-                        jvmName = Int::class.qualifiedName!!,
-                        kind = TypeKind.INT,
-                        isOptional = false,
-                        parameters = emptyList()
-                ))
-        )
+        val ref = ListTypeRef(intRef.required()).optional(OptionalType.INPUT)
         val code = ref.writeInputFieldValueCode("varName")
         assertThat(code.toString().trim()).isEqualTo("""
             if (varName.defined) {
@@ -146,62 +94,29 @@ class TypesTest {
 
     @Test
     fun `writes list of enums value`() {
-        val ref = TypeRef(
-                name = "List",
-                jvmName = List::class.qualifiedName!!,
-                kind = TypeKind.LIST,
-                isOptional = false,
-                parameters = listOf(TypeRef(
-                        name = "Enum",
-                        jvmName = Enum::class.qualifiedName!!,
-                        kind = TypeKind.ENUM,
-                        isOptional = false,
-                        parameters = emptyList()
-                ))
-        )
+        val ref = ListTypeRef(episodeRef.required()).required()
         val code = ref.writeInputFieldValueCode("varName")
         assertThat(code.toString().trim()).isEqualTo("""
             _writer.writeList("varName", ${ListWriter::class.qualifiedName} { _itemWriter ->
-                varName.forEach { _itemWriter.writeString(it.rawValue()) }
+                varName.forEach { _itemWriter.writeString(it.rawValue) }
             })
         """.trimIndent())
     }
 
     @Test
     fun `writes list of optional enums value`() {
-        val ref = TypeRef(
-                name = "List",
-                jvmName = List::class.qualifiedName!!,
-                kind = TypeKind.LIST,
-                isOptional = false,
-                parameters = listOf(TypeRef(
-                        name = "Enum",
-                        kind = TypeKind.ENUM,
-                        isOptional = true,
-                        optionalType = Input::class
-                ))
-        )
+        val ref = ListTypeRef(episodeRef.nullable()).required()
         val code = ref.writeInputFieldValueCode("varName")
         assertThat(code.toString().trim()).isEqualTo("""
             _writer.writeList("varName", ${ListWriter::class.qualifiedName} { _itemWriter ->
-                varName.forEach { _itemWriter.writeString(it?.rawValue()) }
+                varName.forEach { _itemWriter.writeString(it?.rawValue) }
             })
         """.trimIndent())
     }
 
     @Test
     fun `writes list of objects value`() {
-        val ref = TypeRef(
-                name = "List",
-                jvmName = List::class.qualifiedName!!,
-                kind = TypeKind.LIST,
-                isOptional = false,
-                parameters = listOf(TypeRef(
-                        name = "ColorInput",
-                        kind = TypeKind.OBJECT,
-                        isOptional = false
-                ))
-        )
+        val ref = ListTypeRef(colorInputRef.required()).required()
         val code = ref.writeInputFieldValueCode("varName")
         assertThat(code.toString().trim()).isEqualTo("""
             _writer.writeList("varName", ${ListWriter::class.qualifiedName} { _itemWriter ->
@@ -212,18 +127,7 @@ class TypesTest {
 
     @Test
     fun `writes list of optional objects value`() {
-        val ref = TypeRef(
-                name = "List",
-                jvmName = List::class.qualifiedName!!,
-                kind = TypeKind.LIST,
-                isOptional = false,
-                parameters = listOf(TypeRef(
-                        name = "ColorInput",
-                        kind = TypeKind.OBJECT,
-                        isOptional = true,
-                        optionalType = Input::class
-                ))
-        )
+        val ref = ListTypeRef(colorInputRef.nullable()).required()
         val code = ref.writeInputFieldValueCode("varName")
         assertThat(code.toString().trim()).isEqualTo("""
             _writer.writeList("varName", ${ListWriter::class.qualifiedName} { _itemWriter ->
@@ -232,24 +136,9 @@ class TypesTest {
         """.trimIndent())
     }
 
-
     @Test
     fun `writes list of lists value`() {
-        val ref = TypeRef(
-                name = "List",
-                kind = TypeKind.LIST,
-                isOptional = false,
-                parameters = listOf(TypeRef(
-                        name = "List",
-                        kind = TypeKind.LIST,
-                        isOptional = false,
-                        parameters = listOf(TypeRef(
-                                name = "Int",
-                                kind = TypeKind.INT,
-                                isOptional = false
-                        ))
-                ))
-        )
+        val ref = ListTypeRef(ListTypeRef(intRef.required()).required()).required()
         val code = ref.writeInputFieldValueCode("varName")
         assertThat(code.toString().trim()).isEqualTo("""
             _writer.writeList("varName", ${ListWriter::class.qualifiedName} { _itemWriter ->
@@ -264,55 +153,31 @@ class TypesTest {
 
     @Test
     fun `writes list of custom scalars value`() {
-        val ref = TypeRef(
-                name = "List",
-                jvmName = List::class.qualifiedName!!,
-                kind = TypeKind.LIST,
-                isOptional = false,
-                parameters = listOf(TypeRef(
-                        name = "CustomType.DATE",
-                        jvmName = Date::class.qualifiedName!!,
-                        kind = TypeKind.CUSTOM,
-                        isOptional = false,
-                        parameters = emptyList()
-                ))
-        )
+        val ref = ListTypeRef(customDateRef.required()).required()
         val code = ref.writeInputFieldValueCode("varName")
         assertThat(code.toString().trim()).isEqualTo("""
             _writer.writeList("varName", ${ListWriter::class.qualifiedName} { _itemWriter ->
-                varName.forEach { _itemWriter.writeCustom(CustomType.DATE, it) }
+                varName.forEach { _itemWriter.writeCustom(com.example.types.CustomType.DATE, it) }
             })
         """.trimIndent())
     }
 
     @Test
     fun `writes custom scalar value`() {
-        val ref = TypeRef(
-                name = "CustomType.DATE",
-                jvmName = Date::class.qualifiedName!!,
-                kind = TypeKind.CUSTOM,
-                isOptional = false
-        )
+        val ref = customDateRef.required()
         val code = ref.writeInputFieldValueCode("varName")
         assertThat(code.toString().trim()).isEqualTo("""
-            _writer.writeCustom("varName", CustomType.DATE, varName)
+            _writer.writeCustom("varName", com.example.types.CustomType.DATE, varName)
         """.trimIndent())
     }
 
     @Test
     fun `writes optional custom scalar value`() {
-        val ref = TypeRef(
-                name = "CustomType.DATE",
-                jvmName = Date::class.qualifiedName!!,
-                kind = TypeKind.CUSTOM,
-                isOptional = true,
-                optionalType = Input::class,
-                parameters = emptyList()
-        )
+        val ref = customDateRef.optional(OptionalType.INPUT)
         val code = ref.writeInputFieldValueCode("varName")
         assertThat(code.toString().trim()).isEqualTo("""
             if (varName.defined) {
-                _writer.writeCustom("varName", CustomType.DATE, varName.value)
+                _writer.writeCustom("varName", com.example.types.CustomType.DATE, varName.value)
             }
         """.trimIndent())
     }

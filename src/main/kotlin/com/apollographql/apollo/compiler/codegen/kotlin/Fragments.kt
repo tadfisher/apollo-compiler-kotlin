@@ -5,7 +5,6 @@ import com.apollographql.apollo.compiler.codegen.kotlin.ClassNames.LIST
 import com.apollographql.apollo.compiler.codegen.kotlin.ClassNames.STRING
 import com.apollographql.apollo.compiler.ir.FragmentSpec
 import com.apollographql.apollo.compiler.util.update
-import com.squareup.kotlinpoet.ClassName
 import com.squareup.kotlinpoet.CodeBlock
 import com.squareup.kotlinpoet.FunSpec
 import com.squareup.kotlinpoet.KModifier
@@ -28,7 +27,7 @@ fun FragmentSpec.typeSpec(): TypeSpec {
             })
             .build()
 
-    return with(selections.dataClassSpec(className()).toBuilder()) {
+    return with(selections.dataClassSpec(javaType.kotlin()).toBuilder()) {
         addGeneratedAnnotation()
 
         addSuperinterface(GraphqlFragment::class)
@@ -50,8 +49,6 @@ fun FragmentSpec.typeSpec(): TypeSpec {
         build()
     }
 }
-
-fun FragmentSpec.className(): ClassName = ClassName.bestGuess(jvmName)
 
 object Fragments {
     val fragmentDefinitionProp = "FRAGMENT_DEFINITION"

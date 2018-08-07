@@ -1,36 +1,30 @@
 package com.apollographql.apollo.compiler.codegen.kotlin
 
-import com.apollographql.apollo.api.Input
-import com.apollographql.apollo.api.ResponseField
-import com.apollographql.apollo.api.ScalarType
-import com.apollographql.apollo.api.internal.Optional
 import com.apollographql.apollo.compiler.ast.EnumValue
 import com.apollographql.apollo.compiler.ast.OperationType
 import com.apollographql.apollo.compiler.ast.VariableValue
-import com.apollographql.apollo.compiler.ir.FragmentSpec
-import com.apollographql.apollo.compiler.ir.FragmentSpreadSpec
+import com.apollographql.apollo.compiler.ir.JavaTypeName
 import com.apollographql.apollo.compiler.ir.OperationDataSpec
 import com.apollographql.apollo.compiler.ir.OperationSpec
 import com.apollographql.apollo.compiler.ir.OperationVariablesSpec
+import com.apollographql.apollo.compiler.ir.OptionalType
 import com.apollographql.apollo.compiler.ir.ResponseFieldSpec
 import com.apollographql.apollo.compiler.ir.SelectionSetSpec
-import com.apollographql.apollo.compiler.ir.TypeKind
-import com.apollographql.apollo.compiler.ir.TypeRef
 import com.apollographql.apollo.compiler.ir.VariableSpec
 import com.google.common.truth.Truth.assertThat
 import com.squareup.kotlinpoet.ClassName
 import org.junit.Test
-import java.util.Date
 
 class OperationsTest {
 
     @Test
     fun `emits query operation type`() {
         val spec = OperationSpec(
-                id = "1234",
-                name = "TestQuery",
-                operation = OperationType.QUERY,
-                source = """
+            id = "1234",
+            name = "TestQuery",
+            javaType = JavaTypeName("com.example", "TestQuery"),
+            operation = OperationType.QUERY,
+            source = """
                     query TestQuery {
                         hero {
                           __typename
@@ -39,39 +33,34 @@ class OperationsTest {
                         }
                     }
                 """.trimIndent(),
-                optionalType = null,
-                data = OperationDataSpec(selections = SelectionSetSpec(fields = listOf(
+            data = OperationDataSpec(selections = SelectionSetSpec(fields = listOf(
+                ResponseFieldSpec(
+                    name = "hero",
+                    doc = "A hero.",
+                    type = heroRef,
+                    selections = SelectionSetSpec(fields = listOf(
                         ResponseFieldSpec(
-                                name = "hero",
-                                doc = "A hero.",
-                                type = TypeRef(
-                                        name = "Hero",
-                                        kind = TypeKind.OBJECT
-                                ),
-                                selections = SelectionSetSpec(fields = listOf(
-                                        typenameSpec,
-                                        ResponseFieldSpec(
-                                                name = "id",
-                                                doc = "ID of the hero.",
-                                                type = idRef
-                                        ),
-                                        ResponseFieldSpec(
-                                                name = "name",
-                                                doc = "Hero name.",
-                                                type = stringRef
-                                        )
-                                ))
+                            name = "id",
+                            doc = "ID of the hero.",
+                            type = idRef
+                        ),
+                        ResponseFieldSpec(
+                            name = "name",
+                            doc = "Hero name.",
+                            type = stringRef
+                        )
+                    )).withTypename()
                 )))),
-                variables = null)
+            variables = null)
 
-        assertThat(spec.typeSpec().code()).isEqualTo("""
+        assertThat(spec.typeSpec().code("com.example")).isEqualTo("""
             @Generated("Apollo GraphQL")
             class TestQuery : Query<TestQuery.Data, TestQuery.Data, Operation.Variables> {
-                override fun name() = OPERATION_NAME
+                override fun name(): OperationName = OPERATION_NAME
 
-                override fun operationId() = OPERATION_ID
+                override fun operationId(): String = OPERATION_ID
 
-                override fun queryDocument() = QUERY_DOCUMENT
+                override fun queryDocument(): String = QUERY_DOCUMENT
 
                 override fun wrapData(data: Data): Data = data
 
@@ -138,7 +127,7 @@ class OperationsTest {
                     internal val _marshaller: ResponseFieldMarshaller by lazy {
                                 ResponseFieldMarshaller { _writer ->
                                     _writer.writeString("RESPONSE_FIELDS[0]", __typename)
-                                    _writer.writeCustom("RESPONSE_FIELDS[1]", CustomType.ID, id)
+                                    _writer.writeString("RESPONSE_FIELDS[1]", id)
                                     _writer.writeString("RESPONSE_FIELDS[2]", name)
                                 }
                             }
@@ -153,14 +142,14 @@ class OperationsTest {
                         @JvmField
                         internal val RESPONSE_FIELDS: Array<ResponseField> = arrayOf(
                                     ResponseField.forString("__typename", "__typename", null, false, emptyList()),
-                                    ResponseField.forCustomType("id", "id", null, false, CustomType.ID, emptyList()),
+                                    ResponseField.forString("id", "id", null, false, emptyList()),
                                     ResponseField.forString("name", "name", null, true, emptyList())
                                 )
 
                         @JvmField
                         val MAPPER: ResponseFieldMapper<Hero> = ResponseFieldMapper<Hero> { _reader -> Hero(
                                     Utils.checkNotNull(_reader.readString(RESPONSE_FIELDS[0]), "__typename == null"),
-                                    Utils.checkNotNull(_reader.readCustomType(RESPONSE_FIELDS[1] as ResponseField.CustomTypeField), "id == null"),
+                                    Utils.checkNotNull(_reader.readString(RESPONSE_FIELDS[1]), "id == null"),
                                     _reader.readString(RESPONSE_FIELDS[2])
                                 )}
                     }
@@ -172,10 +161,11 @@ class OperationsTest {
     @Test
     fun `emits query operation type with variables`() {
         val spec = OperationSpec(
-                id = "1234",
-                name = "TestQuery",
-                operation = OperationType.QUERY,
-                source = """
+            id = "1234",
+            name = "TestQuery",
+            javaType = JavaTypeName("com.example", "TestQuery"),
+            operation = OperationType.QUERY,
+            source = """
                     query TestQuery(${'$'}epsiode: Episode, ${'$'}IncludeName: Boolean!
                         hero(episode: ${'$'}episode) {
                           __typename
@@ -183,46 +173,41 @@ class OperationsTest {
                         }
                     }
                 """.trimIndent(),
-                optionalType = null,
-                data = OperationDataSpec(selections = SelectionSetSpec(fields = listOf(
+            data = OperationDataSpec(selections = SelectionSetSpec(fields = listOf(
+                ResponseFieldSpec(
+                    name = "hero",
+                    doc = "A hero.",
+                    type = heroRef,
+                    selections = SelectionSetSpec(fields = listOf(
                         ResponseFieldSpec(
-                                name = "hero",
-                                doc = "A hero.",
-                                type = TypeRef(
-                                        name = "Hero",
-                                        kind = TypeKind.OBJECT
-                                ),
-                                selections = SelectionSetSpec(fields = listOf(
-                                        typenameSpec,
-                                        ResponseFieldSpec(
-                                                name = "name",
-                                                doc = "Hero name.",
-                                                type = stringRef,
-                                                includeIf = listOf(VariableValue("IncludeName"))
-                                        )
-                                ))
-                        )))),
-                variables = OperationVariablesSpec(variables = listOf(
-                        VariableSpec(
-                                name = "episode",
-                                type = episodeRef.copy(optionalType = Input::class)
-                        ),
-                        VariableSpec(
-                                name = "IncludeName",
-                                type = booleanRef.copy(isOptional = false)
+                            name = "name",
+                            doc = "Hero name.",
+                            type = stringRef,
+                            includeIf = listOf(VariableValue("IncludeName"))
                         )
-                )))
+                    )).withTypename()
+                )))),
+            variables = OperationVariablesSpec(variables = listOf(
+                VariableSpec(
+                    name = "episode",
+                    type = episodeRef.optional(OptionalType.INPUT)
+                ),
+                VariableSpec(
+                    name = "IncludeName",
+                    type = booleanRef.required()
+                )
+            )))
 
-        assertThat(spec.typeSpec().code()).isEqualTo("""
+        assertThat(spec.typeSpec().code("com.example")).isEqualTo("""
             @Generated("Apollo GraphQL")
             class TestQuery internal constructor(private val variables: Variables) : Query<TestQuery.Data, TestQuery.Data, TestQuery.Variables> {
                 constructor(episode: Input<Episode>, includeName: Boolean) : this(Variables(episode,%WIncludeName))
 
-                override fun name() = OPERATION_NAME
+                override fun name(): OperationName = OPERATION_NAME
 
-                override fun operationId() = OPERATION_ID
+                override fun operationId(): String = OPERATION_ID
 
-                override fun queryDocument() = QUERY_DOCUMENT
+                override fun queryDocument(): String = QUERY_DOCUMENT
 
                 override fun wrapData(data: Data): Data = data
 
@@ -260,7 +245,7 @@ class OperationsTest {
 
                     override fun marshaller() = InputFieldMarshaller { _writer ->
                         if (episode.defined) {
-                            _writer.writeString("episode", episode.value?.rawValue())
+                            _writer.writeString("episode", episode.value?.rawValue)
                         }
                         _writer.writeBoolean("IncludeName", includeName)
                     }
@@ -333,89 +318,148 @@ class OperationsTest {
 
     @Test
     fun `emits query operation type with simple fragment`() {
-        val fragmentSpec = FragmentSpec(
-                name = "HeroDetails",
-                source = """
-                    fragment HeroDetails on Character {
-                      name
-                    }
-                """.trimIndent(),
-                selections = SelectionSetSpec(fields = listOf(
-                        ResponseFieldSpec(
-                                name = "name",
-                                doc = "The name of the character",
-                                type = stringRef.copy(isOptional = false)
-                        )
-                ))
-        )
-
         val spec = OperationSpec(
-                id = "1234",
-                name = "TestQuery",
-                operation = OperationType.QUERY,
-                source = """
+            id = "1234",
+            name = "TestQuery",
+            javaType = JavaTypeName("com.example", "TestQuery"),
+            operation = OperationType.QUERY,
+            source = """
                     query TestQuery {
                       hero {
                         ...HeroDetails
                       }
                     }
                 """.trimIndent(),
-                data = OperationDataSpec(selections = SelectionSetSpec(
-                        fields = listOf(ResponseFieldSpec(
-                                name = "hero",
-                                type = heroRef,
-                                selections = SelectionSetSpec(
-                                        fragmentSpreads = listOf(
-                                                FragmentSpreadSpec(fragmentSpec)
-                                        )
-                                )
-                        ))
+            data = OperationDataSpec(selections = SelectionSetSpec(
+                fields = listOf(ResponseFieldSpec(
+                    name = "hero",
+                    type = heroRef,
+                    selections = SelectionSetSpec(
+                        fields = listOf(ResponseFieldSpec("fragments",
+                            type = heroDetailsWrapperRef,
+                            typeConditions = heroDetailsSpec.possibleTypes)),
+                        fragments = heroDetailsWrapperRef.spec).withTypename()
                 ))
+            ))
         )
+
+        assertThat(spec.typeSpec().code("com.example")).isEqualTo("""
+            @Generated("Apollo GraphQL")
+            class TestQuery : Query<TestQuery.Data, TestQuery.Data, Operation.Variables> {
+                override fun name(): OperationName = OPERATION_NAME
+
+                override fun operationId(): String = OPERATION_ID
+
+                override fun queryDocument(): String = QUERY_DOCUMENT
+
+                override fun wrapData(data: Data): Data = data
+
+                override fun variables(): Operation.Variables = Operations.EMPTY_VARIABLES
+
+                override fun responseFieldMapper(): ResponseFieldMapper<Data> = Data.MAPPER
+
+                companion object {
+                    const val OPERATION_DEFINITION: String = ""${'"'}
+                            |query TestQuery {
+                            |  hero {
+                            |    ...HeroDetails
+                            |  }
+                            |}
+                            ""${'"'}.trimMargin()
+
+                    const val OPERATION_ID: String = "1234"
+
+                    const val QUERY_DOCUMENT: String = OPERATION_DEFINITION
+
+                    val OPERATION_NAME: OperationName = OperationName { "TestQuery" }
+                }
+
+                data class Data(val hero: Hero?) : Operation.Data {
+                    @delegate:Transient
+                    internal val _marshaller: ResponseFieldMarshaller by lazy {
+                                ResponseFieldMarshaller { _writer ->
+                                    _writer.writeObject("RESPONSE_FIELDS[0]", hero?._marshaller)
+                                }
+                            }
+
+                    override fun marshaller() = _marshaller
+
+                    companion object {
+                        @JvmField
+                        internal val RESPONSE_FIELDS: Array<ResponseField> = arrayOf(
+                                    ResponseField.forObject("hero", "hero", null, true, emptyList())
+                                )
+
+                        @JvmField
+                        val MAPPER: ResponseFieldMapper<Data> = ResponseFieldMapper<Data> { _reader -> Data(
+                                    _reader.readObject(RESPONSE_FIELDS[0], ResponseReader.ObjectReader<Hero> {
+                                        Hero.MAPPER.map(it)
+                                    })
+                                )}
+                    }
+                }
+
+                data class Hero(val __typename: String, val fragments: Fragments) {
+                    @delegate:Transient
+                    internal val _marshaller: ResponseFieldMarshaller by lazy {
+                                ResponseFieldMarshaller { _writer ->
+                                    _writer.writeString("RESPONSE_FIELDS[0]", __typename)
+                                    fragments._marshaller.marshal(_writer)
+                                }
+                            }
+
+                    constructor(fragments: Fragments) : this("Hero", fragments)
+
+                    companion object {
+                        @JvmField
+                        internal val RESPONSE_FIELDS: Array<ResponseField> = arrayOf(
+                                    ResponseField.forString("__typename", "__typename", null, false, emptyList()),
+                                    ResponseField.forFragment("__typename", "__typename", listOf("Human",
+                                            "Droid"))
+                                )
+
+                        @JvmField
+                        val MAPPER: ResponseFieldMapper<Hero> = ResponseFieldMapper<Hero> { _reader -> Hero(
+                                    Utils.checkNotNull(_reader.readString(RESPONSE_FIELDS[0]), "__typename == null"),
+                                    Utils.checkNotNull(_reader.readConditional(RESPONSE_FIELDS[1], ResponseReader.ConditionalTypeReader<Fragments> { _conditionalType, _reader ->
+                                        Fragments.MAPPER.map(_reader, _conditionalType)
+                                    }), "fragments == null")
+                                )}
+                    }
+
+                    data class Fragments(val heroDetails: HeroDetails) {
+                        @delegate:Transient
+                        val _marshaller: ResponseFieldMarshaller by lazy {
+                                    ResponseFieldMarshaller { _writer ->
+                                        heroDetails._marshaller.marshal(_writer)
+                                    }
+                                }
+
+                        companion object {
+                            @JvmField
+                            val MAPPER: FragmentResponseFieldMapper<Fragments> =
+                                    FragmentResponseFieldMapper<Fragments> { _reader, _conditionalType -> Fragments(
+                                        Utils.checkNotNull(HeroDetails.MAPPER.takeIf { _conditionalType in HeroDetails.POSSIBLE_TYPES }?.map(_reader), "heroDetails == null")
+                                    )}
+                        }
+                    }
+                }
+            }
+        """.trimIndent())
     }
 
     @Test
     fun `writes variables type`() {
         val spec = OperationVariablesSpec(listOf(
-                VariableSpec(
-                        name = "enum",
-                        type = TypeRef(
-                                name = "Enum",
-                                jvmName = Enum::class.qualifiedName!!,
-                                kind = TypeKind.ENUM,
-                                isOptional = false
-                        ),
-                        defaultValue = EnumValue("THREE")
-                ),
-                VariableSpec(
-                        name = "int",
-                        type = TypeRef(
-                                name = "Int",
-                                jvmName = Int::class.qualifiedName!!,
-                                kind = TypeKind.INT,
-                                isOptional = true,
-                                optionalType = Input::class
-                        ),
-                        defaultValue = null
-                ),
-                VariableSpec(
-                        name = "date",
-                        type = TypeRef(
-                                name = CustomType.DATE::class.qualifiedName!!,
-                                jvmName = CustomType.DATE.javaType().canonicalName,
-                                kind = TypeKind.CUSTOM,
-                                isOptional = true,
-                                optionalType = Input::class,
-                                parameters = emptyList()
-                        ),
-                        defaultValue = null
-                )
+            VariableSpec("enum", type = episodeRef.required(), defaultValue = EnumValue("NEWHOPE")),
+            VariableSpec("int", type = intRef.optional(OptionalType.INPUT)),
+            VariableSpec("date", type = customDateRef.optional(OptionalType.INPUT))
         ))
         assertThat(spec.typeSpec(ClassName("", "Variables")).code()).isEqualTo("""
             data class Variables(
-                val enum: Enum,
+                val enum: Episode,
                 val int: Input<Int>,
-                val date: Input<Date>
+                val date: Input<ZonedDateTime>
             ) : Operation.Variables {
                 @delegate:Transient
                 private val valueMap: Map<String, Any> by lazy {
@@ -429,7 +473,7 @@ class OperationsTest {
                 override fun valueMap() = valueMap
 
                 override fun marshaller() = InputFieldMarshaller { _writer ->
-                    _writer.writeString("enum", enum.rawValue())
+                    _writer.writeString("enum", enum.rawValue)
                     if (int.defined) {
                         _writer.writeInt("int", int.value)
                     }
@@ -444,28 +488,13 @@ class OperationsTest {
     @Test
     fun `writes data type`() {
         val spec = OperationDataSpec(
-                selections = SelectionSetSpec(
-                        fields = listOf(
-                                ResponseFieldSpec(
-                                        name = "number",
-                                        type = floatRef.copy(
-                                                isOptional = false,
-                                                optionalType = Optional::class
-                                        )
-                                ),
-                                ResponseFieldSpec(
-                                        name = "optionalNumber",
-                                        type = floatRef.copy(
-                                                isOptional = true,
-                                                optionalType = Optional::class
-                                        )
-                                ),
-                                ResponseFieldSpec(
-                                        name = "string",
-                                        type = stringRef.copy(isOptional = false)
-                                )
-                        )
+            selections = SelectionSetSpec(
+                fields = listOf(
+                    ResponseFieldSpec("number", type = floatRef.required()),
+                    ResponseFieldSpec("optionalNumber", type = floatRef.optional(OptionalType.APOLLO)),
+                    ResponseFieldSpec("string", type = stringRef.required())
                 )
+            )
         )
 
         assertThat(spec.typeSpec().code()).isEqualTo("""
@@ -508,18 +537,5 @@ class OperationsTest {
                 }
             }
         """.trimIndent())
-    }
-}
-
-private enum class Enum { ONE, TWO, THREE, FOUR }
-
-private enum class CustomType : ScalarType {
-    ID {
-        override fun typeName() = "ID"
-        override fun javaType() = String::class.java
-    },
-    DATE {
-        override fun typeName() = "Date"
-        override fun javaType() = Date::class.java
     }
 }

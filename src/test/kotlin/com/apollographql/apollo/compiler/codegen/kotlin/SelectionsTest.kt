@@ -1,6 +1,5 @@
 package com.apollographql.apollo.compiler.codegen.kotlin
 
-import com.apollographql.apollo.api.internal.Optional
 import com.apollographql.apollo.compiler.ast.EnumValue
 import com.apollographql.apollo.compiler.ast.IntValue
 import com.apollographql.apollo.compiler.ast.ObjectField
@@ -8,11 +7,12 @@ import com.apollographql.apollo.compiler.ast.ObjectValue
 import com.apollographql.apollo.compiler.ast.VariableValue
 import com.apollographql.apollo.compiler.ir.ArgumentSpec
 import com.apollographql.apollo.compiler.ir.FragmentSpec
-import com.apollographql.apollo.compiler.ir.FragmentSpreadSpec
+import com.apollographql.apollo.compiler.ir.FragmentTypeRef
+import com.apollographql.apollo.compiler.ir.FragmentsWrapperSpec
+import com.apollographql.apollo.compiler.ir.JavaTypeName
+import com.apollographql.apollo.compiler.ir.OptionalType
 import com.apollographql.apollo.compiler.ir.ResponseFieldSpec
 import com.apollographql.apollo.compiler.ir.SelectionSetSpec
-import com.apollographql.apollo.compiler.ir.TypeKind
-import com.apollographql.apollo.compiler.ir.TypeRef
 import com.google.common.truth.Truth.assertThat
 import com.squareup.kotlinpoet.ClassName
 import org.junit.Test
@@ -23,18 +23,10 @@ class SelectionsTest {
     @Test
     fun `emits data class`() {
         val spec = SelectionSetSpec(
-                fields = listOf(
-                        ResponseFieldSpec(
-                                name = "number",
-                                doc = "A number.",
-                                type = floatRef
-                        ),
-                        ResponseFieldSpec(
-                                name = "string",
-                                doc = "A string.",
-                                type = stringRef.copy(isOptional = false)
-                        )
-                )
+            fields = listOf(
+                ResponseFieldSpec("number", doc = "A number.", type = floatRef),
+                ResponseFieldSpec("string", doc = "A string.", type = stringRef.required())
+            )
         )
 
         assertThat(spec.dataClassSpec(ClassName("", "Data")).code()).isEqualTo("""
@@ -71,26 +63,11 @@ class SelectionsTest {
     @Test
     fun `emits data class with optionals`() {
         val spec = SelectionSetSpec(
-                fields = listOf(
-                        ResponseFieldSpec(
-                                name = "number",
-                                type = floatRef.copy(
-                                        isOptional = false,
-                                        optionalType = Optional::class
-                                )
-                        ),
-                        ResponseFieldSpec(
-                                name = "optionalNumber",
-                                type = floatRef.copy(
-                                        isOptional = true,
-                                        optionalType = Optional::class
-                                )
-                        ),
-                        ResponseFieldSpec(
-                                name = "string",
-                                type = stringRef.copy(isOptional = false)
-                        )
-                )
+            fields = listOf(
+                ResponseFieldSpec("number", type = floatRef.required()),
+                ResponseFieldSpec("optionalNumber", type = floatRef.optional(OptionalType.APOLLO)),
+                ResponseFieldSpec("string", type = stringRef.required())
+            )
         )
 
         assertThat(spec.dataClassSpec(ClassName("", "Data")).code()).isEqualTo("""
@@ -136,44 +113,44 @@ class SelectionsTest {
     @Test
     fun `emits response fields`() {
         val spec = SelectionSetSpec(
-                fields = listOf(
-                        ResponseFieldSpec(
-                                name = "heroWithReview",
-                                type = heroRef,
+            fields = listOf(
+                ResponseFieldSpec(
+                    name = "heroWithReview",
+                    type = heroRef,
+                    arguments = listOf(
+                        ArgumentSpec(
+                            name = "episode",
+                            value = VariableValue("episode"),
+                            type = episodeRef
+                        ),
+                        ArgumentSpec(
+                            name = "review",
+                            value = ObjectValue(listOf(
+                                ObjectField("stars", VariableValue("stars")),
+                                ObjectField("favoriteColor", ObjectValue(listOf(
+                                    ObjectField("red", IntValue(BigInteger.valueOf(0))),
+                                    ObjectField("green", VariableValue("greenValue")),
+                                    ObjectField("blue", IntValue(BigInteger.valueOf(0)))
+                                )))
+                            )),
+                            type = reviewRef
+                        )
+                    ),
+                    selections = SelectionSetSpec(
+                        fields = listOf(
+                            ResponseFieldSpec(
+                                name = "name",
+                                type = stringRef
+                            ),
+                            ResponseFieldSpec(
+                                name = "height",
+                                type = floatRef,
                                 arguments = listOf(
-                                        ArgumentSpec(
-                                                name = "episode",
-                                                value = VariableValue("episode"),
-                                                type = episodeRef
-                                        ),
-                                        ArgumentSpec(
-                                                name = "review",
-                                                value = ObjectValue(listOf(
-                                                        ObjectField("stars", VariableValue("stars")),
-                                                        ObjectField("favoriteColor", ObjectValue(listOf(
-                                                                ObjectField("red", IntValue(BigInteger.valueOf(0))),
-                                                                ObjectField("green", VariableValue("greenValue")),
-                                                                ObjectField("blue", IntValue(BigInteger.valueOf(0)))
-                                                        )))
-                                                )),
-                                                type = reviewRef
-                                        )
-                                ),
-                                selections = SelectionSetSpec(
-                                        fields = listOf(
-                                                ResponseFieldSpec(
-                                                        name = "name",
-                                                        type = stringRef
-                                                ),
-                                                ResponseFieldSpec(
-                                                        name = "height",
-                                                        type = floatRef,
-                                                        arguments = listOf(
-                                                                ArgumentSpec(
-                                                                        name = "unit",
-                                                                        value = EnumValue("FOOT"),
-                                                                        type = unitRef
-                                                                ))))))))
+                                    ArgumentSpec(
+                                        name = "unit",
+                                        value = EnumValue("FOOT"),
+                                        type = unitRef
+                                    ))))))))
 
         assertThat(spec.responseFieldsPropertySpec().code()).isEqualTo("""
             @JvmField
@@ -205,89 +182,51 @@ class SelectionsTest {
     @Test
     fun `emits response mapper`() {
         val spec = SelectionSetSpec(
-                fields = listOf(
-                        ResponseFieldSpec(
-                                name = "number",
-                                type = floatRef
-                        ),
-                        ResponseFieldSpec(
-                                name = "string",
-                                type = stringRef.copy(isOptional = false)
-                        ),
-                        ResponseFieldSpec(
-                                name = "unit",
-                                type = unitRef
-                        ),
-                        ResponseFieldSpec(
-                                name = "heroWithReview",
-                                type = heroRef
-                        ),
-                        ResponseFieldSpec(
-                                name = "list",
-                                type = listRef
-                        ),
-                        ResponseFieldSpec(
-                                name = "custom",
-                                type = customRef
-                        ),
-                        ResponseFieldSpec(
-                                name = "fragments",
-                                type = fragmentsRef
-                        )
-                )
+            fields = listOf(
+                ResponseFieldSpec("number", type = floatRef),
+                ResponseFieldSpec("string", type = stringRef.required()),
+                ResponseFieldSpec("unit", type = unitRef),
+                ResponseFieldSpec("heroWithReview", type = heroRef),
+                ResponseFieldSpec("list", type = listRef.of(stringRef)),
+                ResponseFieldSpec("custom", type = customUrlRef),
+                ResponseFieldSpec("fragments", type = heroDetailsWrapperRef)
+            )
         )
 
-        assertThat(spec.responseMapperPropertySpec(ClassName("", "Data")).code()).isEqualTo("""
-            @JvmField
-            val MAPPER: ResponseFieldMapper<Data> = ResponseFieldMapper<Data> { _reader -> Data(
-                        _reader.readDouble(RESPONSE_FIELDS[0]),
-                        Utils.checkNotNull(_reader.readString(RESPONSE_FIELDS[1]), "string == null"),
-                        _reader.readString(RESPONSE_FIELDS[2])?.let {
-                            Unit.safeValueOf(it)
-                        },
-                        _reader.readObject(RESPONSE_FIELDS[3], ResponseReader.ObjectReader<HeroWithReview> {
-                            HeroWithReview.MAPPER.map(it)
-                        }),
-                        _reader.readList(RESPONSE_FIELDS[4], ResponseReader.ListReader<List<String?>> { _itemReader ->
-                            _itemReader.readString()
-                        }),
-                        _reader.readCustomType(RESPONSE_FIELDS[5] as ResponseField.CustomTypeField),
-                        Utils.checkNotNull(_reader.readConditional(RESPONSE_FIELDS[6], ResponseReader.ConditionalTypeReader<Fragments> { _conditionalType, _reader ->
-                            Fragments.MAPPER.map(_reader, _conditionalType)
-                        }), "fragments == null")
-                    )}
+        assertThat(spec.responseMapperPropertySpec(ClassName("com.example", "Data")).code("com.example"))
+            .isEqualTo("""
+                @JvmField
+                val MAPPER: ResponseFieldMapper<Data> = ResponseFieldMapper<Data> { _reader -> Data(
+                            _reader.readDouble(RESPONSE_FIELDS[0]),
+                            Utils.checkNotNull(_reader.readString(RESPONSE_FIELDS[1]), "string == null"),
+                            _reader.readString(RESPONSE_FIELDS[2])?.let {
+                                Unit.safeValueOf(it)
+                            },
+                            _reader.readObject(RESPONSE_FIELDS[3], ResponseReader.ObjectReader<TestQuery.Hero> {
+                                TestQuery.Hero.MAPPER.map(it)
+                            }),
+                            _reader.readList(RESPONSE_FIELDS[4], ResponseReader.ListReader<List<String?>> { _itemReader ->
+                                _itemReader.readString()
+                            }),
+                            _reader.readCustomType(RESPONSE_FIELDS[5] as ResponseField.CustomTypeField),
+                            Utils.checkNotNull(_reader.readConditional(RESPONSE_FIELDS[6], ResponseReader.ConditionalTypeReader<Fragments> { _conditionalType, _reader ->
+                                Fragments.MAPPER.map(_reader, _conditionalType)
+                            }), "fragments == null")
+                        )}
         """.trimIndent())
     }
 
     @Test
     fun `emits response marshaller`() {
         val spec = SelectionSetSpec(
-                fields = listOf(
-                        ResponseFieldSpec(
-                                name = "number",
-                                type = floatRef
-                        ),
-                        ResponseFieldSpec(
-                                name = "unit",
-                                type = unitRef
-                        ),
-                        ResponseFieldSpec(
-                                name = "heroWithReview",
-                                type = heroRef
-                        ),
-                        ResponseFieldSpec(
-                                name = "list",
-                                type = listRef
-                        ),
-                        ResponseFieldSpec(
-                                name = "custom",
-                                type = customRef
-                        ),
-                        ResponseFieldSpec(
-                                name = "fragments",
-                                type = fragmentsRef
-                        )
-                )
+            fields = listOf(
+                ResponseFieldSpec("number", type = floatRef),
+                ResponseFieldSpec("unit", type = unitRef),
+                ResponseFieldSpec("heroWithReview", type = heroRef),
+                ResponseFieldSpec("list", type = listRef.of(stringRef)),
+                ResponseFieldSpec("custom", type = customUrlRef),
+                ResponseFieldSpec("fragments", type = heroDetailsWrapperRef)
+            )
         )
 
         assertThat(spec.responseMarshallerPropertySpec().code()).isEqualTo("""
@@ -295,12 +234,12 @@ class SelectionsTest {
             internal val _marshaller: ResponseFieldMarshaller by lazy {
                         ResponseFieldMarshaller { _writer ->
                             _writer.writeDouble("RESPONSE_FIELDS[0]", number)
-                            _writer.writeString("RESPONSE_FIELDS[1]", unit?.rawValue())
+                            _writer.writeString("RESPONSE_FIELDS[1]", unit?.rawValue)
                             _writer.writeObject("RESPONSE_FIELDS[2]", heroWithReview?._marshaller)
                             _writer.writeList("RESPONSE_FIELDS[3]", ResponseWriter.ListWriter { _itemWriter ->
                                 list?.forEach { _itemWriter.writeString(it) }
                             })
-                            _writer.writeCustom("RESPONSE_FIELDS[4]", CustomType.CUSTOM, custom)
+                            _writer.writeCustom("RESPONSE_FIELDS[4]", CustomType.URL, custom)
                             fragments._marshaller.marshal(_writer)
                         }
                     }
@@ -310,40 +249,43 @@ class SelectionsTest {
     @Test
     fun `emits fragments type`() {
         val humanFragmentSpec = FragmentSpec(
-                name = "HumanDetails",
-                source = """
+            name = "HumanDetails",
+            javaType = JavaTypeName("com.example.fragments", "HumanDetails"),
+            source = """
                     fragment HumanDetails on Human {
                       name
                       height
                     }
                 """.trimIndent(),
-                selections = SelectionSetSpec(fields = listOf(
-                        ResponseFieldSpec(name = "name", type = stringRef),
-                        ResponseFieldSpec(name = "height", type = floatRef)
-                )),
-                typeCondition = TypeRef(name = "Human", kind = TypeKind.OBJECT)
+            typeCondition = "Human",
+            selections = SelectionSetSpec(fields = listOf(
+                ResponseFieldSpec("name", type = stringRef),
+                ResponseFieldSpec("height", type = floatRef)
+            ))
         )
 
         val droidFragmentSpec = FragmentSpec(
-                name = "DroidDetails",
-                source = """
+            name = "DroidDetails",
+            javaType = JavaTypeName("com.example.fragments", "DroidDetails"),
+            source = """
                     fragment DroidDetails on Droid {
                       name
                       primaryFunction
                     }
                 """.trimIndent(),
-                selections = SelectionSetSpec(fields = listOf(
-                        ResponseFieldSpec(name = "name", type = stringRef),
-                        ResponseFieldSpec(name = "primaryFunction", type = stringRef)
-                ))
+            typeCondition = "Droid",
+            selections = SelectionSetSpec(fields = listOf(
+                ResponseFieldSpec("name", type = stringRef),
+                ResponseFieldSpec("primaryFunction", type = stringRef)
+            ))
         )
 
-        val spec = SelectionSetSpec(fragmentSpreads = listOf(
-                FragmentSpreadSpec(humanFragmentSpec),
-                FragmentSpreadSpec(droidFragmentSpec)
+        val spec = FragmentsWrapperSpec(listOf(
+            ResponseFieldSpec("humanDetails", type = FragmentTypeRef(humanFragmentSpec)),
+            ResponseFieldSpec("droidDetails", type = FragmentTypeRef(droidFragmentSpec))
         ))
 
-        assertThat(spec.fragmentsTypeSpec().code()).isEqualTo("""
+        assertThat(spec.typeSpec().code("com.example.fragments")).isEqualTo("""
             data class Fragments(val humanDetails: HumanDetails?, val droidDetails: DroidDetails?) {
                 @delegate:Transient
                 val _marshaller: ResponseFieldMarshaller by lazy {
@@ -357,8 +299,8 @@ class SelectionsTest {
                     @JvmField
                     val MAPPER: FragmentResponseFieldMapper<Fragments> =
                             FragmentResponseFieldMapper<Fragments> { _reader, _conditionalType -> Fragments(
-                                HumanDetails.MAPPER.takeIf (_conditionalType in HumanDetails.POSSIBLE_TYPES)?.map(_reader),
-                                DroidDetails.MAPPER.takeIf (_conditionalType in DroidDetails.POSSIBLE_TYPES)?.map(_reader)
+                                HumanDetails.MAPPER.takeIf { _conditionalType in HumanDetails.POSSIBLE_TYPES }?.map(_reader),
+                                DroidDetails.MAPPER.takeIf { _conditionalType in DroidDetails.POSSIBLE_TYPES }?.map(_reader)
                             )}
                 }
             }

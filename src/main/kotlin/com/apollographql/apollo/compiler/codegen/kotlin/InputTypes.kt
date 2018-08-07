@@ -4,20 +4,22 @@ import com.apollographql.apollo.api.ScalarType
 import com.apollographql.apollo.compiler.codegen.kotlin.ClassNames.CLASS
 import com.apollographql.apollo.compiler.codegen.kotlin.ClassNames.INPUT_FIELD_MARSHALLER
 import com.apollographql.apollo.compiler.codegen.kotlin.ClassNames.STRING
+import com.apollographql.apollo.compiler.ir.CustomTypeRef
 import com.apollographql.apollo.compiler.ir.CustomTypesSpec
 import com.apollographql.apollo.compiler.ir.EnumTypeSpec
 import com.apollographql.apollo.compiler.ir.EnumTypeSpec.Companion.unknownValue
 import com.apollographql.apollo.compiler.ir.EnumValueSpec
 import com.apollographql.apollo.compiler.ir.InputObjectTypeSpec
 import com.apollographql.apollo.compiler.ir.InputValueSpec
-import com.apollographql.apollo.compiler.ir.ScalarTypeSpec
+import com.apollographql.apollo.compiler.ir.OptionalType
+import com.apollographql.apollo.compiler.ir.CustomScalarTypeSpec
 import com.squareup.kotlinpoet.AnnotationSpec
 import com.squareup.kotlinpoet.ClassName
 import com.squareup.kotlinpoet.CodeBlock
 import com.squareup.kotlinpoet.FunSpec
 import com.squareup.kotlinpoet.KModifier
-import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import com.squareup.kotlinpoet.ParameterSpec
+import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import com.squareup.kotlinpoet.PropertySpec
 import com.squareup.kotlinpoet.TypeSpec
 import com.squareup.kotlinpoet.WildcardTypeName
@@ -54,20 +56,20 @@ fun InputObjectTypeSpec.typeSpec(className: ClassName): TypeSpec {
 }
 
 fun InputValueSpec.constructorParameterSpec(): ParameterSpec {
-    val typeName = type.typeName()
+    val typeName = type.kotlin()
     return with(ParameterSpec.builder(propertyName, typeName)) {
         // TODO support default values for custom types
-        if (defaultValue != null && !type.isCustom) {
+        if (defaultValue != null && type.unwrapped !is CustomTypeRef) {
             defaultValue(type.initializerCode(defaultValue))
-        } else if (type.isOptional) {
-            defaultValue(typeName.defaultOptionalValue())
+        } else if (type.optional != OptionalType.NONNULL) {
+            defaultValue(type.optional.emptyValue())
         }
         build()
     }
 }
 
 fun InputValueSpec.propertySpec(): PropertySpec {
-    return PropertySpec.builder(propertyName, type.typeName())
+    return PropertySpec.builder(propertyName, type.kotlin())
         .initializer(propertyName)
         .build()
 }
@@ -130,24 +132,24 @@ fun CustomTypesSpec.typeSpec(): TypeSpec {
         addSuperinterface(ScalarType::class)
 
         for (type in types) {
-            addEnumConstant(type.name, type.enumConstantSpec())
+            addEnumConstant(type.propertyName, type.enumConstantSpec())
         }
 
         build()
     }
 }
 
-fun ScalarTypeSpec.enumConstantSpec(): TypeSpec {
+fun CustomScalarTypeSpec.enumConstantSpec(): TypeSpec {
     return TypeSpec.anonymousClassBuilder()
         .addFunction(FunSpec.builder("typeName")
             .addModifiers(KModifier.OVERRIDE)
             .returns(STRING)
-            .addCode("return %S\n", type.name)
+            .addCode("return %S\n", name)
             .build())
         .addFunction(FunSpec.builder("javaType")
             .addModifiers(KModifier.OVERRIDE)
             .returns(CLASS.parameterizedBy(WildcardTypeName.STAR))
-            .addCode("return %T::class.java\n", type.typeName(false))
+            .addCode("return %T::class.java\n", javaType.kotlin())
             .build())
         .build()
 }

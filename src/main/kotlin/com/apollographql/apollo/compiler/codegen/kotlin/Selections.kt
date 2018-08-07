@@ -4,30 +4,32 @@ import com.apollographql.apollo.api.ResponseField
 import com.apollographql.apollo.compiler.codegen.kotlin.ClassNames.FRAGMENT_RESPONSE_MAPPER
 import com.apollographql.apollo.compiler.codegen.kotlin.ClassNames.RESPONSE_MAPPER
 import com.apollographql.apollo.compiler.codegen.kotlin.ClassNames.RESPONSE_MARSHALLER
-import com.apollographql.apollo.compiler.ir.FragmentSpreadSpec
+import com.apollographql.apollo.compiler.ir.FragmentsWrapperSpec
+import com.apollographql.apollo.compiler.ir.InlineFragmentTypeRef
+import com.apollographql.apollo.compiler.ir.ObjectTypeRef
 import com.apollographql.apollo.compiler.ir.ResponseFieldSpec
 import com.apollographql.apollo.compiler.ir.SelectionSetSpec
+import com.apollographql.apollo.compiler.ir.WithJavaType
 import com.squareup.kotlinpoet.ARRAY
 import com.squareup.kotlinpoet.AnnotationSpec
 import com.squareup.kotlinpoet.ClassName
 import com.squareup.kotlinpoet.CodeBlock
 import com.squareup.kotlinpoet.FunSpec
 import com.squareup.kotlinpoet.KModifier
-import com.squareup.kotlinpoet.ParameterSpec
 import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import com.squareup.kotlinpoet.PropertySpec
-import com.squareup.kotlinpoet.TypeName
 import com.squareup.kotlinpoet.TypeSpec
 import com.squareup.kotlinpoet.asClassName
 
 fun SelectionSetSpec.typeSpecs(): List<TypeSpec> {
-    return fields.mapNotNull { it.selections?.dataClassSpec(ClassName("", it.typeName)) } +
-            fields.flatMap { it.selections?.typeSpecs() ?: emptyList() }
+    return fields.mapNotNull {
+        it.selections?.dataClassSpec((it.type.unwrapped as WithJavaType).javaType.kotlin())
+    } + fields.flatMap { it.selections?.typeSpecs() ?: emptyList() }
 }
 
 fun SelectionSetSpec.dataClassSpec(name: ClassName): TypeSpec {
     fun defaultTypenameConstructor(
-        fields: List<ResponseFieldSpec>,
+        fields: List<ResponseFieldSpec<*>>,
         maybeOptional: Boolean
     ): FunSpec {
         val otherFields = fields.filterNot { it.name == Selections.typenameField }
@@ -46,10 +48,7 @@ fun SelectionSetSpec.dataClassSpec(name: ClassName): TypeSpec {
                 .build()
     }
 
-    val optionalTypes: List<ClassName?> = fields.map {
-        it.type.takeIf { it.isOptional }?.optionalType?.asClassName()
-    }
-    val hasOptionalTypes = optionalTypes.any { it != null }
+    val hasOptionalWrapperTypes = fields.any { it.type.optional.isWrapperType }
     val hasTypenameField = fields.any { it.name == Selections.typenameField }
 
     return with(TypeSpec.classBuilder(name)) {
@@ -62,38 +61,97 @@ fun SelectionSetSpec.dataClassSpec(name: ClassName): TypeSpec {
                 .build())
         addParameterKdoc(fields)
 
-        if (hasOptionalTypes) {
+        if (hasOptionalWrapperTypes) {
             primaryConstructor(FunSpec.constructorBuilder()
                     .addModifiers(KModifier.INTERNAL)
                     .addParameters(fields.map { it.constructorParameterSpec(maybeOptional = true) })
                     .build())
 
-            addFunction(with(FunSpec.constructorBuilder()) {
-                addParameters(fields.map { it.constructorParameterSpec(maybeOptional = false) })
-
-                callThisConstructor(fields.mapIndexed { i, field ->
-                    optionalTypes[i]
-                            ?.parameterizedBy(field.type.typeName(false))
-                            ?.wrapOptionalValue(field.responseName)
-                            ?: CodeBlock.of("%L", field.responseName)
-                }.join())
-
-                build()
-            })
+            addFunction(FunSpec.constructorBuilder()
+                .addParameters(fields.map { it.constructorParameterSpec(maybeOptional = false) })
+                .callThisConstructor(fields.map { it.type.optional.fromValue(it.propertyName.code()) }.join())
+                .build())
         } else {
-            primaryConstructor(with(FunSpec.constructorBuilder()) {
-                addParameters(fields.map { it.constructorParameterSpec(maybeOptional = true) })
-                build()
-            })
+            primaryConstructor(FunSpec.constructorBuilder()
+                .addParameters(fields.map { it.constructorParameterSpec(maybeOptional = true) })
+                .build())
         }
 
         if (hasTypenameField) {
-            addFunction(defaultTypenameConstructor(fields, !hasOptionalTypes))
+            addFunction(defaultTypenameConstructor(fields, !hasOptionalWrapperTypes))
         }
 
-        if (fragmentSpreads.isNotEmpty()) {
-            addType(fragmentsTypeSpec())
+        if (fragments != null) {
+            addType(fragments.typeSpec())
         }
+
+        build()
+    }
+}
+
+fun FragmentsWrapperSpec.typeSpec(): TypeSpec {
+    val className = ClassName("", Selections.fragmentsType)
+
+    val hasOptionalWrapperTypes = fragmentSpreads.any { it.type.optional.isWrapperType }
+
+    val marshallerLambda = CodeBlock.of("""
+        %T { %L ->
+        %>%L
+        %<}
+    """.trimIndent(),
+        RESPONSE_MARSHALLER, Types.defaultWriterParam,
+        fragmentSpreads.joinToCodeBlock("\n") { it.type.writeResponseFieldValueCode("", it.propertyName) }
+    )
+
+    val mapperLambda = CodeBlock.of("""
+        %T { %L, %L -> %T(
+        %>%L
+        %<)}
+    """.trimIndent(),
+        FRAGMENT_RESPONSE_MAPPER.parameterizedBy(className),
+        Types.defaultReaderParam, Types.conditionalTypeParam,
+        className,
+        fragmentSpreads.joinToCodeBlock(",\n") { it.type.readResponseFieldValueCode("", it.propertyName) }
+    )
+
+    return with(TypeSpec.classBuilder(className)) {
+        addModifiers(KModifier.DATA)
+
+        if (hasOptionalWrapperTypes) {
+            primaryConstructor(FunSpec.constructorBuilder()
+                .addModifiers(KModifier.INTERNAL)
+                .addParameters(fragmentSpreads.map { it.constructorParameterSpec(true) })
+                .build())
+
+            addFunction(FunSpec.constructorBuilder()
+                .addParameters(fragmentSpreads.map { it.constructorParameterSpec(false) })
+                .callThisConstructor(fragmentSpreads.map { it.type.optional.fromValue(it.propertyName.code()) }.join())
+                .build())
+        } else {
+            primaryConstructor(FunSpec.constructorBuilder()
+                .addParameters(fragmentSpreads.map { it.constructorParameterSpec(true) })
+                .build())
+        }
+
+        addProperties(fragmentSpreads.map { it.propertySpec() })
+
+        addProperty(PropertySpec.builder(Selections.marshallerProperty, RESPONSE_MARSHALLER)
+            .addTransientAnnotation(AnnotationSpec.UseSiteTarget.DELEGATE)
+            .delegate("""
+                    lazy {
+                    %>%L
+                    %<}
+                """.trimIndent(), marshallerLambda)
+            .build())
+
+        addType(TypeSpec.companionObjectBuilder()
+            .addProperty(PropertySpec.builder(
+                Selections.mapperProperty,
+                FRAGMENT_RESPONSE_MAPPER.parameterizedBy(className))
+                .addAnnotation(JvmField::class)
+                .initializer(mapperLambda)
+                .build())
+            .build())
 
         build()
     }
@@ -112,7 +170,7 @@ fun SelectionSetSpec.responseFieldsPropertySpec(): PropertySpec {
             .build()
 }
 
-fun SelectionSetSpec.responseMapperPropertySpec(forType: TypeName): PropertySpec {
+fun SelectionSetSpec.responseMapperPropertySpec(forType: ClassName): PropertySpec {
     val mapperType = RESPONSE_MAPPER.parameterizedBy(forType)
 
     val mapperCode = fields.mapIndexed { i, field ->
@@ -151,118 +209,12 @@ fun SelectionSetSpec.responseMarshallerPropertySpec(): PropertySpec {
             .build()
 }
 
-fun SelectionSetSpec.fragmentsTypeSpec(): TypeSpec {
-    val className = ClassName("", Selections.fragmentsType)
-
-    val hasOptionalTypes = fragmentSpreads.any { it.optionalType != null }
-
-    val marshallerLambda = CodeBlock.of("""
-        %T { %L ->
-        %>%L
-        %<}
-    """.trimIndent(),
-            RESPONSE_MARSHALLER, Types.defaultWriterParam,
-            fragmentSpreads.joinToCodeBlock("\n") { it.writeValueCode() }
-    )
-
-    val mapperLambda = CodeBlock.of("""
-        %T { %L, %L -> %T(
-        %>%L
-        %<)}
-    """.trimIndent(),
-            FRAGMENT_RESPONSE_MAPPER.parameterizedBy(className),
-            Types.defaultReaderParam, Types.conditionalTypeParam,
-            className,
-            fragmentSpreads.joinToCodeBlock(",\n") { it.readValueCode() }
-    )
-
-    return with(TypeSpec.classBuilder(className)) {
-        addModifiers(KModifier.DATA)
-
-        if (hasOptionalTypes) {
-            primaryConstructor(FunSpec.constructorBuilder()
-                    .addModifiers(KModifier.INTERNAL)
-                    .addParameters(fragmentSpreads.map { it.constructorParameterSpec(true) })
-                    .build())
-
-            addFunction(FunSpec.constructorBuilder()
-                    .addParameters(fragmentSpreads.map { it.constructorParameterSpec(false) })
-                    .callThisConstructor(fragmentSpreads.joinToCodeBlock {
-                        it.optionalType?.asClassName()?.wrapOptionalValue(it.propertyName)
-                                ?: CodeBlock.of(it.propertyName)
-                    })
-                    .build())
-        } else {
-            primaryConstructor(FunSpec.constructorBuilder()
-                    .addParameters(fragmentSpreads.map { it.constructorParameterSpec(true) })
-                    .build())
-        }
-
-        addProperties(fragmentSpreads.map { it.propertySpec() })
-
-        addProperty(PropertySpec.builder(Selections.marshallerProperty, RESPONSE_MARSHALLER)
-                .addTransientAnnotation(AnnotationSpec.UseSiteTarget.DELEGATE)
-                .delegate("""
-                    lazy {
-                    %>%L
-                    %<}
-                """.trimIndent(), marshallerLambda)
-                .build())
-
-        addType(TypeSpec.companionObjectBuilder()
-                .addProperty(PropertySpec.builder(
-                        Selections.mapperProperty,
-                        FRAGMENT_RESPONSE_MAPPER.parameterizedBy(className))
-                        .addAnnotation(JvmField::class)
-                        .initializer(mapperLambda)
-                        .build())
-                .build())
-
-        build()
-    }
-}
-
-fun FragmentSpreadSpec.constructorParameterSpec(maybeOptional: Boolean): ParameterSpec {
-    val fragmentType = fragmentTypeName(maybeOptional).let {
-        if (isOptional && !maybeOptional) it.asNullable() else it
-    }
-    return ParameterSpec.builder(propertyName, fragmentType).build()
-}
-
-fun FragmentSpreadSpec.propertySpec(): PropertySpec {
-    return PropertySpec.builder(propertyName, fragmentTypeName(true))
-            .initializer(propertyName)
-            .build()
-}
-
-fun FragmentSpreadSpec.fragmentTypeName(maybeOptional: Boolean): TypeName {
-    return if (maybeOptional && isOptional) {
-        optionalType?.asClassName()?.parameterizedBy(fragment.className())
-                ?: fragment.className().asNullable()
-    } else {
-        fragment.className()
-    }
-}
-
-fun FragmentSpreadSpec.readValueCode(): CodeBlock {
-    val fragmentType = fragment.className()
-
-    return CodeBlock.of("%T.%L.takeIf (%L in %T.%L)?.map(%L)",
-            fragmentType, Selections.mapperProperty,
-            Types.conditionalTypeParam, fragmentType, Fragments.possibleTypesProp,
-            Types.defaultReaderParam)
-}
-
-fun FragmentSpreadSpec.writeValueCode(): CodeBlock {
-    return CodeBlock.of("%L.%L.marshal(%L)",
-            fragmentTypeName(true).unwrapOptionalValue(propertyName, true),
-            Selections.marshallerProperty, Types.defaultWriterParam)
-}
-
 object Selections {
     const val responseFieldsProperty = "RESPONSE_FIELDS"
     const val mapperProperty = "MAPPER"
     const val marshallerProperty = "_marshaller"
     const val typenameField = "__typename"
     const val fragmentsType = "Fragments"
+
+    val generatedTypes = setOf(ObjectTypeRef::class, InlineFragmentTypeRef::class)
 }

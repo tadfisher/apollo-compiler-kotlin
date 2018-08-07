@@ -30,9 +30,9 @@ import com.squareup.kotlinpoet.TypeSpec
 import com.squareup.kotlinpoet.asClassName
 
 fun OperationSpec.typeSpec(): TypeSpec {
-    val className = ClassName("", name)
+    val className = javaType.kotlin()
     val dataType = className.nestedClass("Data")
-    val optionalDataType = optionalType?.asClassName()?.parameterizedBy(dataType) ?: dataType
+    val optionalDataType = optional.wrap(dataType).asNonNullable()
     val variablesType = if (variables != null) {
         className.nestedClass("Variables")
     } else {
@@ -86,16 +86,19 @@ fun OperationSpec.typeSpec(): TypeSpec {
 
         addFunction(FunSpec.builder(Operations.nameFun)
             .addModifiers(KModifier.OVERRIDE)
+            .returns(OPERATION_NAME)
             .addCode("return %L\n", Operations.operationNameProperty)
             .build())
 
         addFunction(FunSpec.builder(Operations.operationIdFun)
             .addModifiers(KModifier.OVERRIDE)
+            .returns(STRING)
             .addCode("return %L\n", Operations.idProperty)
             .build())
 
         addFunction(FunSpec.builder(Operations.queryDocumentFun)
             .addModifiers(KModifier.OVERRIDE)
+            .returns(STRING)
             .addCode("return %L\n", Operations.queryDocumentProperty)
             .build())
 
@@ -103,7 +106,7 @@ fun OperationSpec.typeSpec(): TypeSpec {
             .addModifiers(KModifier.OVERRIDE)
             .addParameter("data", dataType)
             .returns(optionalDataType)
-            .addCode("return %L\n", optionalDataType.wrapOptionalValue("data"))
+            .addCode("return %L\n", optional.toValue("data".code()))
             .build())
 
         addFunction(FunSpec.builder(Operations.variablesFun)

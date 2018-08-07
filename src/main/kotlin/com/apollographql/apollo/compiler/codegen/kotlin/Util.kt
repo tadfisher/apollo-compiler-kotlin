@@ -72,3 +72,5 @@ fun List<PropertyWithDoc>.parameterKdoc(): CodeBlock {
         CodeBlock.of("@param %L %L", name, doc)
     }
 }
+
+fun String.code() = CodeBlock.of("%L", this)
