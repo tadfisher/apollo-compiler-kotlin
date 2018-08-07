@@ -132,12 +132,6 @@ class OperationsTest {
                                 }
                             }
 
-                    /**
-                     * @param id ID of the hero.
-                     * @param name Hero name.
-                     */
-                    constructor(id: String, name: String?) : this("Hero", id, name)
-
                     companion object {
                         @JvmField
                         internal val RESPONSE_FIELDS: Array<ResponseField> = arrayOf(
@@ -291,11 +285,6 @@ class OperationsTest {
                                 }
                             }
 
-                    /**
-                     * @param name Hero name.
-                     */
-                    constructor(name: String?) : this("Hero", name)
-
                     companion object {
                         @JvmField
                         internal val RESPONSE_FIELDS: Array<ResponseField> = arrayOf(
@@ -407,8 +396,6 @@ class OperationsTest {
                                     fragments._marshaller.marshal(_writer)
                                 }
                             }
-
-                    constructor(fragments: Fragments) : this("Hero", fragments)
 
                     companion object {
                         @JvmField

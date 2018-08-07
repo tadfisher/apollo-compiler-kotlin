@@ -7,7 +7,6 @@ import com.apollographql.apollo.compiler.codegen.kotlin.ClassNames.RESPONSE_MARS
 import com.apollographql.apollo.compiler.ir.FragmentsWrapperSpec
 import com.apollographql.apollo.compiler.ir.InlineFragmentTypeRef
 import com.apollographql.apollo.compiler.ir.ObjectTypeRef
-import com.apollographql.apollo.compiler.ir.ResponseFieldSpec
 import com.apollographql.apollo.compiler.ir.SelectionSetSpec
 import com.apollographql.apollo.compiler.ir.WithJavaType
 import com.squareup.kotlinpoet.ARRAY
@@ -28,26 +27,6 @@ fun SelectionSetSpec.typeSpecs(): List<TypeSpec> {
 }
 
 fun SelectionSetSpec.dataClassSpec(name: ClassName): TypeSpec {
-    fun defaultTypenameConstructor(
-        fields: List<ResponseFieldSpec<*>>,
-        maybeOptional: Boolean
-    ): FunSpec {
-        val otherFields = fields.filterNot { it.name == Selections.typenameField }
-        return FunSpec.constructorBuilder()
-                .addParameterKdoc(otherFields)
-                .addParameters(otherFields.map { it.constructorParameterSpec(maybeOptional) })
-                .callThisConstructor(CodeBlock.of("%L",
-                        fields.map {
-                            if (it.name == Selections.typenameField) {
-                                // TODO determine reasonable default __typename
-                                CodeBlock.of("%S", name.simpleName)
-                            } else {
-                                CodeBlock.of("%L", it.responseName)
-                            }
-                        }.join()))
-                .build()
-    }
-
     val hasOptionalWrapperTypes = fields.any { it.type.optional.isWrapperType }
     val hasTypenameField = fields.any { it.name == Selections.typenameField }
 
@@ -75,10 +54,6 @@ fun SelectionSetSpec.dataClassSpec(name: ClassName): TypeSpec {
             primaryConstructor(FunSpec.constructorBuilder()
                 .addParameters(fields.map { it.constructorParameterSpec(maybeOptional = true) })
                 .build())
-        }
-
-        if (hasTypenameField) {
-            addFunction(defaultTypenameConstructor(fields, !hasOptionalWrapperTypes))
         }
 
         if (fragments != null) {

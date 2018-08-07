@@ -29,11 +29,6 @@ class FragmentsTest {
                             }
                         }
 
-                /**
-                 * @param name The name of the character
-                 */
-                constructor(name: String) : this("HeroDetails", name)
-
                 override fun __typename(): String = __typename
 
                 companion object {
@@ -160,12 +155,6 @@ class FragmentsTest {
                             }
                         }
 
-                constructor(
-                    id: String,
-                    name: String?,
-                    pilotConnection: PilotConnection?
-                ) : this("StarshipFragment", id, name, pilotConnection)
-
                 override fun __typename(): String = __typename
 
                 companion object {
@@ -220,8 +209,6 @@ class FragmentsTest {
                                 }
                             }
 
-                    constructor(edges: List<Edge?>?) : this("PilotConnection", edges)
-
                     companion object {
                         @JvmField
                         internal val RESPONSE_FIELDS: Array<ResponseField> = arrayOf(
@@ -251,8 +238,6 @@ class FragmentsTest {
                                 }
                             }
 
-                    constructor(node: Node?) : this("Edge", node)
-
                     companion object {
                         @JvmField
                         internal val RESPONSE_FIELDS: Array<ResponseField> = arrayOf(
@@ -278,8 +263,6 @@ class FragmentsTest {
                                     fragments._marshaller.marshal(_writer)
                                 }
                             }
-
-                    constructor(fragments: Fragments) : this("Node", fragments)
 
                     companion object {
                         @JvmField
