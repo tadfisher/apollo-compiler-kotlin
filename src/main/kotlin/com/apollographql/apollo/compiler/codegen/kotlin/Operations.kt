@@ -78,7 +78,9 @@ fun OperationSpec.typeSpec(): TypeSpec {
             addFunction(FunSpec.constructorBuilder()
                 .addParameters(variables.variables.map { it.operationParameterSpec() })
                 .callThisConstructor(CodeBlock.of("%T(%L)", variablesType,
-                    variables.variables.joinToString(",%W") { it.name }))
+                    variables.variables.joinToCodeBlock(", ") {
+                        CodeBlock.of("%L", it.type.optional.fromValue(it.propertyName.code()))
+                    }))
                 .build())
 
             addType(variables.typeSpec(variablesType))

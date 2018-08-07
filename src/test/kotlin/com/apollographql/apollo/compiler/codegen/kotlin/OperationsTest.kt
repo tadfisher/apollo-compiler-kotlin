@@ -195,7 +195,7 @@ class OperationsTest {
         assertThat(spec.typeSpec().code("com.example")).isEqualTo("""
             @Generated("Apollo GraphQL")
             class TestQuery internal constructor(private val variables: Variables) : Query<TestQuery.Data, TestQuery.Data, TestQuery.Variables> {
-                constructor(episode: Input<Episode>, includeName: Boolean) : this(Variables(episode,%WIncludeName))
+                constructor(episode: Input<Episode>, includeName: Boolean) : this(Variables(Input.fromNullable(episode), includeName))
 
                 override fun name(): OperationName = OPERATION_NAME
 
