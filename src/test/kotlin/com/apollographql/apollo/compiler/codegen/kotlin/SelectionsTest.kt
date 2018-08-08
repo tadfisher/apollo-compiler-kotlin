@@ -8,7 +8,7 @@ import com.apollographql.apollo.compiler.ast.VariableValue
 import com.apollographql.apollo.compiler.ir.ArgumentSpec
 import com.apollographql.apollo.compiler.ir.FragmentSpec
 import com.apollographql.apollo.compiler.ir.FragmentTypeRef
-import com.apollographql.apollo.compiler.ir.FragmentsWrapperSpec
+import com.apollographql.apollo.compiler.ir.FragmentsWrapperTypeRef
 import com.apollographql.apollo.compiler.ir.JavaTypeName
 import com.apollographql.apollo.compiler.ir.OptionalType
 import com.apollographql.apollo.compiler.ir.ResponseFieldSpec
@@ -189,7 +189,7 @@ class SelectionsTest {
                 ResponseFieldSpec("heroWithReview", type = heroRef),
                 ResponseFieldSpec("list", type = listRef.of(stringRef)),
                 ResponseFieldSpec("custom", type = customUrlRef),
-                ResponseFieldSpec("fragments", type = heroDetailsWrapperRef)
+                ResponseFieldSpec("fragments", type = FragmentsWrapperTypeRef)
             )
         )
 
@@ -225,7 +225,7 @@ class SelectionsTest {
                 ResponseFieldSpec("heroWithReview", type = heroRef),
                 ResponseFieldSpec("list", type = listRef.of(stringRef)),
                 ResponseFieldSpec("custom", type = customUrlRef),
-                ResponseFieldSpec("fragments", type = heroDetailsWrapperRef)
+                ResponseFieldSpec("fragments", type = FragmentsWrapperTypeRef)
             )
         )
 
@@ -247,7 +247,7 @@ class SelectionsTest {
     }
 
     @Test
-    fun `emits fragments type`() {
+    fun `emits fragments wrapper type`() {
         val humanFragmentSpec = FragmentSpec(
             name = "HumanDetails",
             javaType = JavaTypeName("com.example.fragments", "HumanDetails"),
@@ -280,12 +280,12 @@ class SelectionsTest {
             ))
         )
 
-        val spec = FragmentsWrapperSpec(listOf(
+        val fragmentSpreads = listOf(
             ResponseFieldSpec("humanDetails", type = FragmentTypeRef(humanFragmentSpec)),
             ResponseFieldSpec("droidDetails", type = FragmentTypeRef(droidFragmentSpec))
-        ))
+        )
 
-        assertThat(spec.typeSpec().code("com.example.fragments")).isEqualTo("""
+        assertThat(fragmentSpreads.typeSpec().code("com.example.fragments")).isEqualTo("""
             data class Fragments(val humanDetails: HumanDetails?, val droidDetails: DroidDetails?) {
                 @delegate:Transient
                 val _marshaller: ResponseFieldMarshaller by lazy {

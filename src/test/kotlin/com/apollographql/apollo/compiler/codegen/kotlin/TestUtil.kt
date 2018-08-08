@@ -9,8 +9,6 @@ import com.apollographql.apollo.compiler.ir.EnumTypeSpec
 import com.apollographql.apollo.compiler.ir.EnumValueSpec
 import com.apollographql.apollo.compiler.ir.FragmentSpec
 import com.apollographql.apollo.compiler.ir.FragmentTypeRef
-import com.apollographql.apollo.compiler.ir.FragmentsWrapperSpec
-import com.apollographql.apollo.compiler.ir.FragmentsWrapperTypeRef
 import com.apollographql.apollo.compiler.ir.JavaTypeName
 import com.apollographql.apollo.compiler.ir.ListTypeRef
 import com.apollographql.apollo.compiler.ir.ObjectTypeRef
@@ -110,5 +108,3 @@ val heroDetailsSpec = FragmentSpec(
 )
 
 val heroDetailsRef = FragmentTypeRef(heroDetailsSpec).required()
-val heroDetailsWrapperRef = FragmentsWrapperTypeRef(FragmentsWrapperSpec(listOf(
-    ResponseFieldSpec("heroDetails", type = heroDetailsRef, typeConditions = heroDetailsSpec.possibleTypes))))

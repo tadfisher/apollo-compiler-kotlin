@@ -2,7 +2,6 @@ package com.apollographql.apollo.compiler.codegen.kotlin
 
 import com.apollographql.apollo.compiler.ir.FragmentSpec
 import com.apollographql.apollo.compiler.ir.FragmentTypeRef
-import com.apollographql.apollo.compiler.ir.FragmentsWrapperSpec
 import com.apollographql.apollo.compiler.ir.FragmentsWrapperTypeRef
 import com.apollographql.apollo.compiler.ir.JavaTypeName
 import com.apollographql.apollo.compiler.ir.ListTypeRef
@@ -84,11 +83,6 @@ class FragmentsTest {
             )).withTypename()
         )
 
-        val wrapperSpec = FragmentsWrapperSpec(listOf(
-            ResponseFieldSpec("pilotFragment",
-                type = FragmentTypeRef(pilotSpec).required())
-        ))
-
         val spec = FragmentSpec(
             name = "starshipFragment",
             javaType = JavaTypeName("com.example.fragments", "StarshipFragment"),
@@ -127,9 +121,11 @@ class FragmentsTest {
                                         JavaTypeName("com.example.fragments", "StarshipFragment.Node")),
                                     selections = SelectionSetSpec(
                                         fields = listOf(ResponseFieldSpec("fragments",
-                                            type = FragmentsWrapperTypeRef(wrapperSpec),
+                                            type = FragmentsWrapperTypeRef,
                                             typeConditions = pilotSpec.possibleTypes)),
-                                        fragments = wrapperSpec
+                                        fragmentSpreads = listOf(
+                                            ResponseFieldSpec("pilotFragment",
+                                                type = FragmentTypeRef(pilotSpec).required()))
                                     ).withTypename()
                                 ))).withTypename()
                         ))

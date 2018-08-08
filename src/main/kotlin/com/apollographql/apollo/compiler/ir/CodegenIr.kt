@@ -30,8 +30,8 @@ data class OperationSpec(
 
 data class SelectionSetSpec(
     val fields: List<ResponseFieldSpec<*>> = emptyList(),
-    val fragments: FragmentsWrapperSpec? = null,
-    val inlineFragments: List<InlineFragmentSpec> = emptyList()
+    val fragmentSpreads: List<ResponseFieldSpec<FragmentTypeRef>> = emptyList(),
+    val inlineFragments: List<ResponseFieldSpec<InlineFragmentTypeRef>> = emptyList()
 ) {
     fun withTypename() = copy(fields = listOf(ResponseFieldSpec.typenameField) + fields)
 }
@@ -71,10 +71,6 @@ data class ResponseFieldSpec<T : TypeRef>(
         )
     }
 }
-
-data class FragmentsWrapperSpec(
-    val fragmentSpreads: List<ResponseFieldSpec<FragmentTypeRef>>
-)
 
 data class InlineFragmentSpec(
     val typeCondition: TypeRef,
@@ -165,9 +161,7 @@ data class CustomTypeRef(
     override fun optional(type: OptionalType) = copy(optional = type)
 }
 
-data class FragmentsWrapperTypeRef(
-    val spec: FragmentsWrapperSpec
-) : TypeRef(), WithJavaType {
+object FragmentsWrapperTypeRef : TypeRef(), WithJavaType {
     override val name = "Fragments"
     override val javaType = JavaTypeName("", name)
     override val optional = OptionalType.NONNULL

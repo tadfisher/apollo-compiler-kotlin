@@ -3,6 +3,8 @@ package com.apollographql.apollo.compiler.codegen.kotlin
 import com.apollographql.apollo.compiler.ast.EnumValue
 import com.apollographql.apollo.compiler.ast.OperationType
 import com.apollographql.apollo.compiler.ast.VariableValue
+import com.apollographql.apollo.compiler.ir.FragmentTypeRef
+import com.apollographql.apollo.compiler.ir.FragmentsWrapperTypeRef
 import com.apollographql.apollo.compiler.ir.JavaTypeName
 import com.apollographql.apollo.compiler.ir.OperationDataSpec
 import com.apollographql.apollo.compiler.ir.OperationSpec
@@ -325,9 +327,12 @@ class OperationsTest {
                     type = heroRef,
                     selections = SelectionSetSpec(
                         fields = listOf(ResponseFieldSpec("fragments",
-                            type = heroDetailsWrapperRef,
+                            type = FragmentsWrapperTypeRef,
                             typeConditions = heroDetailsSpec.possibleTypes)),
-                        fragments = heroDetailsWrapperRef.spec).withTypename()
+                        fragmentSpreads = listOf(ResponseFieldSpec("heroDetails",
+                            type = FragmentTypeRef(heroDetailsSpec).required()
+                        ))
+                    ).withTypename()
                 ))
             ))
         )
