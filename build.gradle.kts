@@ -8,8 +8,8 @@ buildscript {
 
 plugins {
     `java-library`
-    kotlin("jvm") version "1.2.60"
-    kotlin("kapt") version "1.2.60"
+    kotlin("jvm") version "1.2.61"
+    kotlin("kapt") version "1.2.61"
     antlr
     id("com.github.ben-manes.versions") version "0.20.0"
     id("org.jmailen.kotlinter") version "1.16.0"
@@ -19,7 +19,7 @@ dependencies {
 
     implementation(kotlin("stdlib-jdk8"))
     implementation("com.squareup:kotlinpoet:1.0.0-RC1")
-    implementation("com.apollographql.apollo:apollo-api:1.0.0-alpha")
+    implementation("com.apollographql.apollo:apollo-api:1.0.0-alpha2")
 
     implementation("com.squareup.moshi:moshi:1.6.0")
     kapt("com.squareup.moshi:moshi-kotlin-codegen:1.6.0")
@@ -52,5 +52,5 @@ tasks.withType<KotlinCompile> {
 }
 
 tasks.withType<Wrapper> {
-    gradleVersion = "4.9"
+    gradleVersion = "4.10-rc-3"
 }

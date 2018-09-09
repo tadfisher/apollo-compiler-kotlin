@@ -62,6 +62,26 @@ fun SelectionSetSpec.dataClassSpec(name: ClassName): TypeSpec {
     }
 }
 
+// fun SelectionSetSpec.abstractTypeSpec(name: ClassName): TypeSpec {
+//    if (inlineFragments == null) throw IllegalStateException("inlineFragments == null")
+//
+//    val marshaller = PropertySpec.builder(Selections.marshallerProperty, RESPONSE_MARSHALLER, KModifier.ABSTRACT)
+//        .build()
+//
+//    return with (TypeSpec.classBuilder(name)) {
+//        addModifiers(KModifier.SEALED)
+//
+//        addProperties(fields.map { it.abstractPropertySpec() })
+//
+//        addProperty(marshaller)
+//
+//        addType(TypeSpec.companionObjectBuilder()
+//            .addProperty(inlineFragments.mapperPropertySpec(name))
+//            .build())
+//        build()
+//    }
+// }
+
 fun List<ResponseFieldSpec<FragmentTypeRef>>.typeSpec(): TypeSpec {
     val className = ClassName("", Selections.fragmentsType)
 

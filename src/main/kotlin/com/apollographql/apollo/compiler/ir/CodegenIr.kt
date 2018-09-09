@@ -29,7 +29,7 @@ data class OperationSpec(
 ) : WithJavaType
 
 data class SelectionSetSpec(
-    val fields: List<ResponseFieldSpec<*>> = emptyList(),
+    val fields: List<ResponseFieldSpec<out SchemaTypeRef>> = emptyList(),
     val fragmentSpreads: List<ResponseFieldSpec<FragmentTypeRef>> = emptyList(),
     val inlineFragments: List<ResponseFieldSpec<InlineFragmentTypeRef>> = emptyList()
 ) {
@@ -101,10 +101,12 @@ sealed class TypeRef {
     }
 }
 
+sealed class SchemaTypeRef : TypeRef()
+
 data class BuiltinTypeRef(
     val kind: BuiltinType,
     override val optional: OptionalType = OptionalType.NULLABLE
-) : TypeRef() {
+) : SchemaTypeRef() {
     override val name: String = kind.graphqlName
     override fun required() = copy(optional = OptionalType.NONNULL)
     override fun nullable() = copy(optional = OptionalType.NULLABLE)
@@ -122,7 +124,7 @@ enum class BuiltinType(val graphqlName: String) {
 data class EnumTypeRef(
     val spec: EnumTypeSpec,
     override val optional: OptionalType = OptionalType.NULLABLE
-) : TypeRef() {
+) : SchemaTypeRef() {
     override val name = spec.name
     override fun required() = copy(optional = OptionalType.NONNULL)
     override fun nullable() = copy(optional = OptionalType.NULLABLE)
@@ -133,7 +135,7 @@ data class ObjectTypeRef(
     override val name: String,
     override val javaType: JavaTypeName,
     override val optional: OptionalType = OptionalType.NULLABLE
-) : TypeRef(), WithJavaType {
+) : SchemaTypeRef(), WithJavaType {
     override fun required() = copy(optional = OptionalType.NONNULL)
     override fun nullable() = copy(optional = OptionalType.NULLABLE)
     override fun optional(type: OptionalType) = copy(optional = type)
@@ -142,7 +144,7 @@ data class ObjectTypeRef(
 data class ListTypeRef(
     val ofType: TypeRef,
     override val optional: OptionalType = OptionalType.NULLABLE
-) : TypeRef() {
+) : SchemaTypeRef() {
     fun of(ofType: TypeRef) = this.copy(ofType = ofType)
     override val name = "[${ofType.name}]"
     override fun required() = copy(optional = OptionalType.NONNULL)
@@ -153,7 +155,7 @@ data class ListTypeRef(
 data class CustomTypeRef(
     val spec: CustomScalarTypeSpec,
     override val optional: OptionalType = OptionalType.NULLABLE
-) : TypeRef(), WithJavaType {
+) : SchemaTypeRef(), WithJavaType {
     override val name = spec.name
     override val javaType = spec.javaType
     override fun required() = copy(optional = OptionalType.NONNULL)
@@ -161,7 +163,7 @@ data class CustomTypeRef(
     override fun optional(type: OptionalType) = copy(optional = type)
 }
 
-object FragmentsWrapperTypeRef : TypeRef(), WithJavaType {
+object FragmentsWrapperTypeRef : SchemaTypeRef(), WithJavaType {
     override val name = "Fragments"
     override val javaType = JavaTypeName("", name)
     override val optional = OptionalType.NONNULL
